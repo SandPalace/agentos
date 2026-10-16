@@ -1,0 +1,57 @@
+{
+  "name": "agentos",
+  "owner": {
+    "name": "Mty Agentic Labs"
+  },
+  "plugins": [
+    {
+      "name": "agentos-core",
+      "source": "./plugins/agentos-core",
+      "description": "Núcleo: estado en vivo de las sesiones, tareas y entregables, más el COO, agente por defecto que guía y enruta a todos los equipos.",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    },
+    {
+      "name": "marketing-team",
+      "source": "./plugins/marketing-team",
+      "description": "Equipo de marketing agéntico: CMO, investigador, creativo y analista.",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    },
+    {
+      "name": "sales-team",
+      "source": "./plugins/sales-team",
+      "description": "Equipo de ventas agéntico: jefe de ventas, calificador de leads, propuestas y seguimiento.",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    },
+    {
+      "name": "collections-team",
+      "source": "./plugins/collections-team",
+      "description": "Equipo de cobranza agéntico: jefe de cobranza, analista de cartera, gestor de cobro y conciliador.",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    },
+    {
+      "name": "executive-team",
+      "source": "./plugins/executive-team",
+      "description": "Equipo de dirección agéntico: CEO y CFO (el COO vive en agentos-core).",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    },
+    {
+      "name": "dev-team",
+      "source": "./plugins/dev-team",
+      "description": "Equipo de desarrollo web agéntico: líder técnico, diseñador frontend, desarrollador y QA.",
+      "author": {
+        "name": "Mty Agentic Labs"
+      }
+    }
+  ],
+  "description": "AgentOS: equipos de agentes de Claude listos para instalar (agentes, skills, comandos y hooks)."
+}

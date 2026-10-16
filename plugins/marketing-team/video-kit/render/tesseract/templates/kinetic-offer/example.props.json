@@ -1,0 +1,342 @@
+{
+ "name": "Tu Marca-spot-001-v1",
+ "title": "Tu Marca · Taller de IA — Kinetic Offer 15 s",
+ "template": "render/tesseract/templates/kinetic-offer",
+ "duration": 15.0,
+ "max_text_w": 920,
+ "palette": {
+  "paper": "#F5EFE3",
+  "ink": "#181818",
+  "soft": "#6C6A62",
+  "accent": "#D97757",
+  "rule": "#DDD9CC",
+  "white": "#FFFFFF"
+ },
+ "fonts": {
+  "display": "dmsans/DMSans-Bold.ttf",
+  "body": "inter/Inter-Medium.ttf",
+  "body_semi": "inter/Inter-SemiBold.ttf"
+ },
+ "badge": {
+  "text": "TALLER DE IA · TU MARCA",
+  "font": "body_semi",
+  "size": 30,
+  "tracking": 140,
+  "y": 300,
+  "fade_in": false
+ },
+ "music": {
+  "bpm": 120,
+  "lift": 7.0,
+  "drop": [
+   10.9,
+   11.5
+  ],
+  "gain": 0.9
+ },
+ "sfx": {
+  "impact": {
+   "preset": "soft-impact",
+   "gain": 0.83,
+   "lead_ms": 10
+  },
+  "whoosh": {
+   "preset": "air-whoosh",
+   "dur_ms": 450,
+   "gain": 0.48,
+   "lead_ms": 120,
+   "seed": 11
+  },
+  "strike": {
+   "preset": "air-whoosh",
+   "dur_ms": 280,
+   "gain": 0.45,
+   "lead_ms": 60,
+   "seed": 4
+  },
+  "pop": {
+   "preset": "soft-pop",
+   "gain": 0.52
+  },
+  "tick": {
+   "preset": "dry-click",
+   "gain": 0.45
+  },
+  "ping": {
+   "preset": "clear-ping",
+   "gain": 0.48
+  }
+ },
+ "scenes": [
+  {
+   "id": "1-gancho",
+   "start": 0.0,
+   "end": 3.4,
+   "exit": 3.1,
+   "exit_sfx": "whoosh",
+   "elements": [
+    {
+     "kind": "line",
+     "text": "Tu jefe va a",
+     "font": "display",
+     "size": 132,
+     "tracking": -20,
+     "y": 760,
+     "at": -0.3
+    },
+    {
+     "kind": "line",
+     "text": "preguntar",
+     "font": "display",
+     "size": 132,
+     "tracking": -20,
+     "y": 910,
+     "at": -0.18
+    },
+    {
+     "kind": "line",
+     "text": "quién sabe IA.",
+     "font": "display",
+     "size": 132,
+     "tracking": -20,
+     "y": 1060,
+     "at": 0.0
+    },
+    {
+     "kind": "line",
+     "text": "Que seas tú.",
+     "font": "display",
+     "size": 132,
+     "tracking": -20,
+     "y": 1270,
+     "at": 1.5,
+     "color": "accent",
+     "sfx": "impact"
+    }
+   ]
+  },
+  {
+   "id": "2-cambio",
+   "start": 3.4,
+   "end": 6.9,
+   "exit": 6.6,
+   "exit_sfx": "whoosh",
+   "elements": [
+    {
+     "kind": "line",
+     "text": "Deja de",
+     "font": "body",
+     "size": 64,
+     "y": 700,
+     "at": 3.5,
+     "color": "soft"
+    },
+    {
+     "kind": "line",
+     "ref": "pregunta",
+     "text": "preguntarle",
+     "font": "display",
+     "size": 150,
+     "tracking": -20,
+     "y": 870,
+     "at": 3.6,
+     "dim_at": 4.5,
+     "dim_to": 35
+    },
+    {
+     "kind": "line",
+     "text": "a la IA.",
+     "font": "body",
+     "size": 64,
+     "y": 985,
+     "at": 3.7,
+     "color": "soft"
+    },
+    {
+     "kind": "strike",
+     "target": "pregunta",
+     "at": 4.5,
+     "color": "accent",
+     "h": 12,
+     "sfx": "strike"
+    },
+    {
+     "kind": "line",
+     "text": "Empieza a",
+     "font": "body",
+     "size": 64,
+     "y": 1190,
+     "at": 5.0
+    },
+    {
+     "kind": "line",
+     "text": "encargarle.",
+     "font": "display",
+     "size": 150,
+     "tracking": -20,
+     "y": 1350,
+     "at": 5.1,
+     "color": "accent",
+     "sfx": "pop"
+    }
+   ]
+  },
+  {
+   "id": "3-te-llevas",
+   "start": 6.9,
+   "end": 11.2,
+   "exit": 10.9,
+   "exit_sfx": "whoosh",
+   "elements": [
+    {
+     "kind": "line",
+     "text": "4 sesiones de 2 horas",
+     "font": "display",
+     "size": 80,
+     "tracking": -15,
+     "y": 560,
+     "at": 7.0
+    },
+    {
+     "kind": "rule",
+     "y": 680,
+     "at": 7.2
+    },
+    {
+     "kind": "check_row",
+     "text": "Prompts reales para tu rutina laboral y personal",
+     "font": "body_semi",
+     "size": 50,
+     "y": 780,
+     "at": 7.5,
+     "sfx": "tick"
+    },
+    {
+     "kind": "rule",
+     "y": 890,
+     "at": 7.7
+    },
+    {
+     "kind": "check_row",
+     "text": "Informes y documentos de Excel, resueltos",
+     "font": "body_semi",
+     "size": 50,
+     "y": 990,
+     "at": 8.0,
+     "sfx": "tick"
+    },
+    {
+     "kind": "rule",
+     "y": 1100,
+     "at": 8.2
+    },
+    {
+     "kind": "check_row",
+     "text": "Correos y contenido, en minutos",
+     "font": "body_semi",
+     "size": 50,
+     "y": 1200,
+     "at": 8.5,
+     "sfx": "tick"
+    },
+    {
+     "kind": "rule",
+     "y": 1310,
+     "at": 8.7
+    },
+    {
+     "kind": "check_row",
+     "text": "Te llevas tu propio agente personalizado",
+     "font": "body_semi",
+     "size": 50,
+     "y": 1410,
+     "at": 9.0,
+     "sfx": "tick"
+    }
+   ]
+  },
+  {
+   "id": "4-oferta",
+   "start": 11.2,
+   "end": 15.0,
+   "exit": 99,
+   "elements": [
+    {
+     "kind": "line",
+     "text": "AI para",
+     "font": "display",
+     "size": 150,
+     "tracking": -20,
+     "y": 660,
+     "at": 11.35
+    },
+    {
+     "kind": "line",
+     "text": "Negocios",
+     "font": "display",
+     "size": 150,
+     "tracking": -20,
+     "y": 810,
+     "at": 11.45
+    },
+    {
+     "kind": "line",
+     "text": "Taller presencial para profesionistas",
+     "font": "body",
+     "size": 44,
+     "y": 905,
+     "at": 11.6,
+     "color": "soft"
+    },
+    {
+     "kind": "rule",
+     "y": 975,
+     "at": 11.9
+    },
+    {
+     "kind": "line",
+     "text": "Jueves · 7 a 9 pm",
+     "font": "body_semi",
+     "size": 52,
+     "y": 1062,
+     "at": 12.0
+    },
+    {
+     "kind": "line",
+     "text": "Av. Ejemplo 100 · Tu ciudad",
+     "font": "body",
+     "size": 44,
+     "y": 1130,
+     "at": 12.1,
+     "color": "soft"
+    },
+    {
+     "kind": "rule",
+     "y": 1190,
+     "at": 12.2
+    },
+    {
+     "kind": "button",
+     "text": "Aparta tu lugar por WhatsApp",
+     "font": "body_semi",
+     "size": 50,
+     "y": 1320,
+     "w": 840,
+     "h": 136,
+     "at": 12.5,
+     "color": "accent",
+     "sfx": "ping"
+    },
+    {
+     "kind": "line",
+     "text": "55 0000 0000",
+     "font": "body",
+     "size": 44,
+     "y": 1455,
+     "at": 12.7,
+     "color": "soft"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,343 @@
+{
+ "name": "ShowcaseMotion-mascaras-001-v1",
+ "title": "Fiesta de Máscaras — cartoon lyric 15 s",
+ "template": "render/gsap/templates/cartoon-lyric",
+ "duration": 15.0,
+ "reference": "Motion-language study of a 2D cartoon lyric video (beat cuts, sunburst, bubble-letter punch-ins, title splash, horror reveal, iris-out). Characters, lyrics, title and music are original; nothing from the reference is reproduced.",
+ "palette": {
+  "ink": "#1B1030",
+  "night": "#171045",
+  "night2": "#3A1C6E",
+  "cream": "#FFF4E0",
+  "gold": "#F5C542",
+  "pink": "#F59AC4",
+  "pink2": "#EE7CB0",
+  "red": "#E3263A",
+  "red2": "#B5172B",
+  "green": "#3DD653",
+  "green2": "#25B03E",
+  "wall": "#4A2378",
+  "wall2": "#5B2E8F",
+  "floorA": "#2A1650",
+  "floorB": "#F0E3FF"
+ },
+ "guests": {
+  "crimson": {
+   "body": "#E0314A",
+   "dark": "#A51830",
+   "mask": "#F5C542",
+   "feather": "#FFF4E0",
+   "acc": "bow",
+   "accent": "#1B1030"
+  },
+  "violet": {
+   "body": "#8A55E0",
+   "dark": "#5E33A8",
+   "mask": "#FFF4E0",
+   "feather": "#F59AC4",
+   "acc": "partyhat",
+   "accent": "#3DD6C6"
+  },
+  "teal": {
+   "body": "#2CC4B0",
+   "dark": "#18897B",
+   "mask": "#F59AC4",
+   "feather": "#F5C542",
+   "acc": "flower",
+   "accent": "#E0314A"
+  },
+  "mustard": {
+   "body": "#F2B632",
+   "dark": "#C2861A",
+   "mask": "#1B1030",
+   "feather": "#E0314A",
+   "acc": "tophat",
+   "accent": "#E0314A"
+  }
+ },
+ "lyrics": [
+  {
+   "scene": 1,
+   "words": [
+    [
+     "Cada",
+     0.1
+    ],
+    [
+     "noche,",
+     0.35
+    ],
+    [
+     "el",
+     0.6
+    ],
+    [
+     "mismo",
+     0.8
+    ],
+    [
+     "baile",
+     1.1
+    ]
+   ]
+  },
+  {
+   "scene": 2,
+   "words": [
+    [
+     "Nadie",
+     2.05
+    ],
+    [
+     "enseña",
+     2.35
+    ],
+    [
+     "su",
+     2.7
+    ],
+    [
+     "cara",
+     2.95
+    ]
+   ],
+   "top": 150
+  },
+  {
+   "scene": 3,
+   "words": [
+    [
+     "¿Quién",
+     4.05
+    ],
+    [
+     "apagó",
+     4.3
+    ],
+    [
+     "la",
+     4.6
+    ],
+    [
+     "luz?",
+     4.8
+    ]
+   ]
+  },
+  {
+   "scene": 4,
+   "words": [
+    [
+     "¿Fui",
+     5.55
+    ],
+    [
+     "yo?",
+     6.0
+    ]
+   ]
+  },
+  {
+   "scene": 5,
+   "words": [
+    [
+     "¿O",
+     7.0
+    ],
+    [
+     "fuiste",
+     7.25
+    ],
+    [
+     "tú?",
+     7.75
+    ]
+   ]
+  },
+  {
+   "scene": 7,
+   "words": [
+    [
+     "Y",
+     11.0
+    ],
+    [
+     "una",
+     11.2
+    ],
+    [
+     "máscara...",
+     11.4
+    ],
+    [
+     "¡cae!",
+     11.75
+    ]
+   ],
+   "top": 150
+  },
+  {
+   "scene": 8,
+   "words": [
+    [
+     "¡Que",
+     13.0
+    ],
+    [
+     "siga",
+     13.25
+    ],
+    [
+     "la",
+     13.5
+    ],
+    [
+     "fiesta!",
+     13.75
+    ]
+   ]
+  }
+ ],
+ "punch": {
+  "yo": "¿YO?",
+  "tu": "¿TÚ?",
+  "title": [
+   "¡FIESTA",
+   "DE",
+   "MÁSCARAS!"
+  ]
+ },
+ "music": {
+  "script": "score.py",
+  "gain": 1.0,
+  "events": [
+   {
+    "t": 0,
+    "mode": "intro",
+    "chord": "Am"
+   },
+   {
+    "t": 1,
+    "mode": "intro",
+    "chord": "F"
+   },
+   {
+    "t": 2,
+    "mode": "groove",
+    "chord": "Dm"
+   },
+   {
+    "t": 3,
+    "mode": "groove",
+    "chord": "E"
+   },
+   {
+    "t": 4,
+    "mode": "dark",
+    "chord": "Am"
+   },
+   {
+    "t": 5.5,
+    "mode": "groove",
+    "chord": "F"
+   },
+   {
+    "t": 6.25,
+    "mode": "groove",
+    "chord": "Dm"
+   },
+   {
+    "t": 7.0,
+    "mode": "build",
+    "chord": "E"
+   },
+   {
+    "t": 8.5,
+    "mode": "drop",
+    "chord": "Am"
+   },
+   {
+    "t": 9.25,
+    "mode": "drop",
+    "chord": "F",
+    "crash": false
+   },
+   {
+    "t": 10.0,
+    "mode": "drop",
+    "chord": "Dm",
+    "crash": false
+   },
+   {
+    "t": 10.75,
+    "mode": "drop",
+    "chord": "E",
+    "crash": false
+   },
+   {
+    "t": 11.0,
+    "mode": "thin",
+    "chord": "E"
+   },
+   {
+    "t": 11.75,
+    "mode": "silence",
+    "chord": "E"
+   },
+   {
+    "t": 12.0,
+    "mode": "hit",
+    "chord": "cluster"
+   },
+   {
+    "t": 13.0,
+    "mode": "drop",
+    "chord": "Am"
+   },
+   {
+    "t": 13.5,
+    "mode": "drop",
+    "chord": "F",
+    "crash": false
+   },
+   {
+    "t": 14.0,
+    "mode": "drop",
+    "chord": "E",
+    "crash": false
+   },
+   {
+    "t": 14.5,
+    "mode": "end",
+    "chord": "Am"
+   }
+  ]
+ },
+ "sfx": {
+  "pop": {
+   "preset": "soft-pop",
+   "gain": 0.55
+  },
+  "whoosh": {
+   "preset": "air-whoosh",
+   "dur_ms": 400,
+   "gain": 0.5,
+   "lead_ms": 150,
+   "seed": 5
+  },
+  "click": {
+   "preset": "dry-click",
+   "gain": 0.5
+  },
+  "fall": {
+   "preset": "downlifter",
+   "gain": 0.6,
+   "lead_ms": 0
+  },
+  "thud": {
+   "preset": "soft-impact",
+   "gain": 0.7,
+   "lead_ms": 10
+  }
+ }
+}

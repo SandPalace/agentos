@@ -1,0 +1,88 @@
+{
+ "name": "Tu Marca-spot-002-v1",
+ "title": "Tu Marca · Taller de IA — Mascot Explainer 15 s",
+ "template": "render/gsap/templates/mascot-explainer",
+ "duration": 15.0,
+ "palette": {
+  "paper": "#F5EFE3",
+  "ink": "#181818",
+  "accent": "#D97757",
+  "accent-dark": "#B85F42",
+  "blush": "#F0A58C",
+  "signal": "#6A9BCC",
+  "card": "#FFFDF8"
+ },
+ "copy": {
+  "meta": [
+   "Tu Marca",
+   "Taller de IA"
+  ],
+  "hook": [
+   "Tu jefe va a",
+   "preguntar",
+   "quién sabe IA."
+  ],
+  "payoff": "Que seas tú.",
+  "shift_from": [
+   "Deja de",
+   "preguntarle",
+   "a la IA."
+  ],
+  "shift_to": [
+   "Empieza a",
+   "encargarle."
+  ],
+  "proof_head": "4 sesiones de 2 horas",
+  "proof": [
+   "Prompts reales para tu rutina",
+   "Informes y Excel, resueltos",
+   "Correos y contenido en minutos",
+   "Tu propio agente"
+  ],
+  "title": [
+   "AI para",
+   "Negocios"
+  ],
+  "info": [
+   "Jueves · 7 a 9 pm",
+   "Av. Ejemplo 100 · Tu ciudad"
+  ],
+  "cta": "Aparta tu lugar por WhatsApp",
+  "phone": "55 0000 0000"
+ },
+ "music": {
+  "bpm": 120,
+  "lift": 7.5,
+  "drop": [
+   11.1,
+   11.5
+  ],
+  "gain": 0.9
+ },
+ "sfx": {
+  "land": {
+   "preset": "soft-impact",
+   "gain": 0.6,
+   "lead_ms": 10
+  },
+  "pop": {
+   "preset": "soft-pop",
+   "gain": 0.45
+  },
+  "whoosh": {
+   "preset": "air-whoosh",
+   "dur_ms": 450,
+   "gain": 0.45,
+   "lead_ms": 120,
+   "seed": 11
+  },
+  "tick": {
+   "preset": "soft-tap",
+   "gain": 0.6
+  },
+  "ping": {
+   "preset": "clear-ping",
+   "gain": 0.45
+  }
+ }
+}

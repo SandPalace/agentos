@@ -1,0 +1,108 @@
+{
+ "name": "Tu Marca-spot-001-v2",
+ "title": "Tu Marca · Taller de IA — Poster Kinetic 15 s",
+ "template": "render/gsap/templates/poster-kinetic",
+ "duration": 15.0,
+ "palette": {
+  "paper": "#F5EFE3",
+  "ink": "#181818",
+  "accent": "#D97757",
+  "soft": "#6C6A62"
+ },
+ "copy": {
+  "meta": [
+   "Tu Marca",
+   "Taller de IA"
+  ],
+  "hook": [
+   "Tu jefe va a",
+   "preguntar",
+   "quién sabe IA."
+  ],
+  "payoff": "Que seas tú.",
+  "flap": [
+   {
+    "from": "DEJA DE",
+    "to": "EMPIEZA A",
+    "small": true
+   },
+   {
+    "from": "PREGUNTARLE",
+    "to": "ENCARGARLE"
+   },
+   {
+    "from": "A LA IA.",
+    "to": "A LA IA.",
+    "small": true
+   }
+  ],
+  "numeral": "4",
+  "numeral_side": [
+   "sesiones",
+   "de 2 horas"
+  ],
+  "proof": [
+   "Prompts reales para tu rutina",
+   "Informes y Excel, resueltos",
+   "Correos y contenido en minutos",
+   "Tu propio agente personalizado"
+  ],
+  "title": [
+   "AI para",
+   "Negocios"
+  ],
+  "ring": "TALLER DE IA · TU MARCA · TALLER PRESENCIAL PARA PROFESIONISTAS",
+  "info": [
+   [
+    "Jueves",
+    "7 a 9 pm"
+   ],
+   [
+    "Av. Ejemplo 100",
+    "Local 1"
+   ],
+   [
+    "Tu ciudad",
+    "Presencial"
+   ]
+  ],
+  "cta": "Aparta tu lugar por WhatsApp",
+  "phone": "55 0000 0000"
+ },
+ "music": {
+  "bpm": 120,
+  "lift": 7.0,
+  "drop": [
+   10.75,
+   11.2
+  ],
+  "gain": 0.9
+ },
+ "sfx": {
+  "impact": {
+   "preset": "soft-impact",
+   "gain": 0.8,
+   "lead_ms": 10
+  },
+  "whoosh": {
+   "preset": "air-whoosh",
+   "dur_ms": 500,
+   "gain": 0.5,
+   "lead_ms": 150,
+   "seed": 11
+  },
+  "tick": {
+   "preset": "dry-click",
+   "gain": 0.28,
+   "seed": 5
+  },
+  "pop": {
+   "preset": "soft-pop",
+   "gain": 0.5
+  },
+  "ping": {
+   "preset": "clear-ping",
+   "gain": 0.45
+  }
+ }
+}

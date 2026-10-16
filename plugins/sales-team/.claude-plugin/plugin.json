@@ -1,0 +1,6 @@
+{
+  "name": "sales-team",
+  "version": "0.4.0",
+  "description": "Sales team for Mexican SMBs: sets up your offer and qualification rubric, prepares replies to incoming messages (pasted or from your WhatsApp inbox), finds businesses on Google Maps, scores prospects, keeps a Leads Kanban and drafts follow-ups. The agent prepares, you send.",
+  "author": { "name": "Mty Agentic Labs" }
+}

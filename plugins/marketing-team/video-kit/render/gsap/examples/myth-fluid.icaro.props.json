@@ -1,0 +1,272 @@
+{
+ "name": "Icaro-001-v1",
+ "title": "Ícaro — showcase de motion graphics (Opus 5.5 + GSAP + WebGL)",
+ "template": "render/gsap/templates/myth-fluid",
+ "duration": 55.0,
+ "seed": 11,
+ "palette": {
+  "ink": "#07060D",
+  "ink2": "#0A0820",
+  "indigo": "#1A1446",
+  "violet": "#5B2A9E",
+  "gold": "#F2B33D",
+  "bone": "#F3EDE2",
+  "sun": "#FF4A1C",
+  "sunCore": "#FFC25A",
+  "sunDeep": "#5E120E",
+  "wine": "#22081F",
+  "dusk": "#2A1838",
+  "seaDeep": "#031035",
+  "seaSky": "#0B2766",
+  "aegean": "#1446C8",
+  "aegeanLight": "#59B4FF",
+  "sky": "#2456B8",
+  "skyLow": "#0B1E52",
+  "skyGlow": "#9CC8FF"
+ },
+ "scenes": {
+  "maze": 0.0,
+  "wings": 9.6,
+  "warn": 17.5,
+  "flight": 24.0,
+  "sun": 31.5,
+  "end": 45.5
+ },
+ "beats": {
+  "minos": 5.9,
+  "sky": 7.6,
+  "featherSpan": 2.8,
+  "wax": 14.8,
+  "middle": 17.8,
+  "low": 19.9,
+  "high": 21.9,
+  "more": 28.6,
+  "melt": 37.5,
+  "fall": 42.0,
+  "impact": 44.3,
+  "lone": 45.8
+ },
+ "sea": {
+  "impact": 1400,
+  "rest": 1290
+ },
+ "maze": {
+  "counts": [
+   6,
+   12,
+   12,
+   24,
+   24,
+   24,
+   48,
+   48
+  ],
+  "r0": 40,
+  "ring": 48
+ },
+ "pipes": [
+  62,
+  65,
+  67,
+  69,
+  72,
+  74,
+  77,
+  79,
+  81
+ ],
+ "ring": "· HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS · HELIOS ",
+ "fluid": {
+  "simRes": 192,
+  "dyeRes": 720
+ },
+ "chapters": [
+  {
+   "at": 0.3,
+   "out": 9.2,
+   "text": "I · EL LABERINTO"
+  },
+  {
+   "at": 9.6,
+   "out": 17.1,
+   "text": "II · LAS ALAS"
+  },
+  {
+   "at": 17.5,
+   "out": 23.6,
+   "text": "III · EL CONSEJO"
+  },
+  {
+   "at": 24.0,
+   "out": 31.1,
+   "text": "IV · EL VUELO"
+  },
+  {
+   "at": 31.5,
+   "out": 41.6,
+   "text": "V · EL SOL"
+  },
+  {
+   "at": 42.0,
+   "out": 46.0,
+   "text": "VI · EL MAR"
+  }
+ ],
+ "lines": [
+  {
+   "at": 0.6,
+   "out": 3.2,
+   "text": "Dédalo construyó un laberinto.",
+   "y": 1390
+  },
+  {
+   "at": 3.4,
+   "out": 5.7,
+   "text": "El rey lo encerró en él,\ncon su hijo Ícaro.",
+   "y": 1390
+  },
+  {
+   "at": 5.9,
+   "out": 7.5,
+   "text": "Minos era dueño\nde la tierra y del mar.",
+   "y": 1390
+  },
+  {
+   "at": 7.7,
+   "out": 9.4,
+   "text": "Pero no del cielo.",
+   "italic": true,
+   "size": 112,
+   "y": 1400
+  },
+  {
+   "at": 10.0,
+   "out": 12.6,
+   "text": "Dédalo juntó plumas,",
+   "y": 1400
+  },
+  {
+   "at": 12.8,
+   "out": 14.6,
+   "text": "de la más corta\na la más larga,",
+   "y": 1400
+  },
+  {
+   "at": 14.8,
+   "out": 17.2,
+   "text": "y las unió con cera.",
+   "italic": true,
+   "y": 1400,
+   "color": "gold"
+  },
+  {
+   "at": 17.9,
+   "out": 19.7,
+   "text": "«Vuela por en medio»,\nle dijo.",
+   "y": 1290,
+   "bell": 69
+  },
+  {
+   "at": 19.9,
+   "out": 21.7,
+   "text": "«Muy bajo, el mar\nmoja las alas.»",
+   "y": 1290,
+   "bell": 62
+  },
+  {
+   "at": 21.9,
+   "out": 23.7,
+   "text": "«Muy alto, el sol\nderrite la cera.»",
+   "y": 1290,
+   "bell": 76
+  },
+  {
+   "at": 24.4,
+   "out": 26.3,
+   "text": "Volaron.",
+   "italic": true,
+   "size": 124,
+   "y": 1380
+  },
+  {
+   "at": 26.6,
+   "out": 28.4,
+   "text": "Ícaro sintió el viento",
+   "y": 1400
+  },
+  {
+   "at": 28.6,
+   "out": 31.1,
+   "text": "y quiso más.",
+   "italic": true,
+   "size": 124,
+   "y": 1380
+  },
+  {
+   "at": 32.0,
+   "out": 33.3,
+   "text": "Subió.",
+   "y": 1360,
+   "size": 96
+  },
+  {
+   "at": 33.4,
+   "out": 34.7,
+   "text": "Y subió.",
+   "y": 1360,
+   "size": 96
+  },
+  {
+   "at": 34.8,
+   "out": 37.3,
+   "text": "Hasta sentir el sol.",
+   "italic": true,
+   "size": 112,
+   "y": 1350,
+   "color": "sunCore"
+  },
+  {
+   "at": 37.7,
+   "out": 41.7,
+   "text": "La cera se derritió.",
+   "y": 1380,
+   "color": "gold"
+  },
+  {
+   "at": 43.0,
+   "out": 45.6,
+   "text": "Y cayó al mar.",
+   "italic": true,
+   "size": 112,
+   "y": 560
+  },
+  {
+   "at": 46.3,
+   "out": 49.0,
+   "text": "Ese mar todavía\nlleva su nombre:\nel mar Icario.",
+   "y": 520
+  },
+  {
+   "at": 49.3,
+   "text": "ÍCARO",
+   "size": 250,
+   "y": 560
+  },
+  {
+   "at": 50.2,
+   "text": "Ni muy bajo. Ni muy alto.",
+   "italic": true,
+   "size": 66,
+   "y": 840
+  },
+  {
+   "at": 51.2,
+   "text": "AI STUDIOS · OPUS 5.5 · GSAP · WEBGL",
+   "mono": true,
+   "size": 22,
+   "y": 990,
+   "color": "skyGlow"
+  }
+ ],
+ "source": "Ovidio, Metamorfosis VIII, 183–235 (dominio público). Texto en pantalla: reescritura propia."
+}

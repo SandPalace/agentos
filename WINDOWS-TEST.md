@@ -1,0 +1,44 @@
+# Checklist de prueba en Windows (para quien prueba)
+
+Máquina limpia de preferencia (Windows 10/11, usuario normal, sin admin). Probar con **PowerShell 5.1** (el de Windows) y repetir lo básico con PowerShell 7.
+Anota en cada punto OK / falla + el mensaje exacto.
+
+## Antes
+- [ ] `node -v` >= 22.13 (ideal 24), `git --version`, `claude --version` existen.
+- [ ] Clonar: `git clone https://github.com/kikirrins/agentos.git AgentOS-app`
+
+## Instalador (`powershell -ExecutionPolicy Bypass -File .\install.ps1`)
+- [ ] Los acentos y mensajes en español se ven bien (sin caracteres raros): confirma que el BOM funciona en 5.1.
+- [ ] Sin Node (renombra temporalmente o PATH vacío): muestra el aviso con winget y se detiene.
+- [ ] Con Node viejo (<22.13): mensaje claro.
+- [ ] Sin `claude`: muestra opciones winget/irm/npm y se detiene; con `-NoClaudeCli` sigue.
+- [ ] Paso 3: `npm ci` y `next build` terminan sin error en `web\`.
+- [ ] Paso 4: `claude plugin marketplace list` muestra `agentos`; `claude plugin list` muestra los 3 plugins.
+- [ ] Paso 5: `%APPDATA%\Claude\claude_desktop_config.json` tiene `mcpServers.agentos` con ruta absoluta a `node.exe` y existe `.agentos-backup`. Tus otros `mcpServers` siguen ahí. Reiniciar Claude Desktop: aparece la herramienta AgentOS.
+- [ ] Paso 5b: pregunta en español; `n` no toca `%USERPROFILE%\.claude\settings.json`; `S` agrega `mcp__plugin_agentos-core_agentos` (+ `.agentos-backup`). Con `$env:AGENTOS_ALLOW_MCP='no'|'yes'` no pregunta. Con `-NoSettings` lo omite.
+- [ ] Paso 6: pide usuario, contraseña oculta dos veces; rechaza < 8 caracteres o distintas. Crea `%USERPROFILE%\.agentos\.env`; `icacls` muestra solo tu usuario. Segunda corrida: "Ya existe"; con `-ResetLogin` lo vuelve a pedir.
+- [ ] Contraseña con caracteres raros (`$ " ' ` ^ & %`) funciona al entrar a la web.
+- [ ] Paso 7: existe `%USERPROFILE%\AgentOS\`.
+- [ ] Paso 8: existe `%USERPROFILE%\.agentos\bin\agentos.cmd` y está en el PATH de usuario (Configuración > variables de entorno), sin duplicarse en una 2a corrida.
+- [ ] Correr el instalador una 2a vez no rompe nada (idempotente).
+
+## Comando `agentos` (terminal NUEVA)
+- [ ] `agentos` sin argumentos: imprime el uso.
+- [ ] `agentos start`: arranca server (4780) y web (4781) sin ventanas visibles, abre el navegador, muestra pantalla de login.
+- [ ] Iniciar sesión con el usuario creado. Se ve la oficina; crear una tarea desde la web.
+- [ ] Windows Firewall pregunta por `node`: Permitir; todo sigue funcionando.
+- [ ] Existen `%USERPROFILE%\.agentos\run\*.pid` y logs en `logs\` (sin errores).
+- [ ] `agentos status`: ambos "corriendo". `agentos start` otra vez: "ya estaba corriendo".
+- [ ] `agentos stop`: ambos detenidos; `Get-NetTCPConnection -LocalPort 4780,4781` sin resultados; no quedan `node.exe` de AgentOS.
+- [ ] Ocupa el puerto 4781 con otro programa: `agentos start` avisa y no mata nada ajeno.
+- [ ] Con `$env:AGENTOS_PORT=4790; $env:AGENTOS_WEB_PORT=4791` funciona en otros puertos.
+- [ ] `agentos update` (con web corriendo): hace pull, npm ci, build, actualiza plugins y vuelve a arrancar. Con carpeta del repo con espacios o acentos en la ruta también.
+
+## Integración con Claude
+- [ ] En Claude Code (`claude`) dentro de `%USERPROFILE%\AgentOS`: el agente aparece en la oficina (hooks http), y la herramienta MCP `agentos` funciona (crear tarea / entregar archivo).
+- [ ] Hook SessionStart: con el servidor detenido, abrir una sesión de Claude Code lo arranca solo (`ensure.mjs`) y no abre ventana de consola.
+- [ ] En la web: botón de abrir carpeta de un entregable abre el Explorador.
+- [ ] Subir/descargar archivos en la web; el workspace correcto se detecta con `cwd` en otra letra de mayúsculas (`c:\users\...`).
+
+## Reportar
+Versión de Windows, PowerShell (`$PSVersionTable.PSVersion`), Node, y el texto exacto de cualquier error.

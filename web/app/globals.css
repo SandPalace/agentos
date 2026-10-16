@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --ink: 20 22 26; --muted: 90 100 112; --bg: 244 246 249; --surface: 255 255 255; --line: 231 235 241;
+  --blue-soft: 227 236 255; --orange-soft: 255 231 214; --purple-soft: 239 231 254; --teal-soft: 213 243 239; --amber-soft: 253 240 213; --red-soft: 253 232 233;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: 232 236 242; --muted: 152 163 178; --bg: 14 17 22; --surface: 23 27 34; --line: 42 49 60;
+  --blue-soft: 28 44 84; --orange-soft: 70 42 24; --purple-soft: 46 36 78; --teal-soft: 18 58 54; --amber-soft: 70 52 18; --red-soft: 74 30 32;
+}
+@layer base {
+  input, textarea, select { background-color: rgb(var(--surface)); color: rgb(var(--ink)); }
+  ::placeholder { color: rgb(var(--muted) / 0.7); }
+}
+html, body { background: rgb(var(--bg)); color: rgb(var(--ink)); }
+body { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.label { font-family: var(--font-grotesk), var(--font-poppins), sans-serif; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: rgb(var(--muted)); }
+.card { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 2px; }
+
+@keyframes voxel-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes voxel-bubble-in {
+  from { opacity: 0; transform: scale(0.85) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

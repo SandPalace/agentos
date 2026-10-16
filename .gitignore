@@ -1,0 +1,12 @@
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.db
+*.db-shm
+*.db-wal
+*.log
+test-results/
+.DS_Store

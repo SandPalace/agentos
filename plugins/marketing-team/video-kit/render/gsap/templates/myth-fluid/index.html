@@ -1,0 +1,592 @@
+<!doctype html>
+<!--
+  Myth Fluid — a classic story told with geometry and fluid physics. HTML + GSAP + WebGL,
+  rendered by render/gsap/render.mjs with --gpu.
+  First story: Ícaro (Ovid, Metamorphoses VIII), six chapters:
+    I    the labyrinth   a seeded polar maze draws itself, tilts to the floor in 3D and falls away
+    II   the wings       18 feathers fly in and set like pan pipes, shortest to longest; wax seals them
+    III  the warning     sun above, sea below, a scale between them: "fly the middle"
+    IV   the flight      wing tips stir the fluid: the trails are the real velocity of the tips
+    V    the sun         the sun fills the frame; the fluid boils in vortices
+    VI   the sea         feathers come loose under drag and flutter, Ícaro falls, the sea splashes
+  Layers: a stable-fluids canvas (lib/fluid.js), an SVG geometry layer, a text layer.
+  Determinism: the GSAP timeline is paused; __seek(t) advances the fluid one fixed step per
+  frame from wherever it is (resetting if t goes backwards). Feather physics is analytic.
+  Copy, chapters and palette come from window.__props. The score is score.py, fed by the
+  events this page reports in __meta.music.events.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Myth Fluid</title>
+<style>
+  @font-face { font-family: "Serif"; src: url("../../../tesseract/fonts/instrumentserif/InstrumentSerif-Regular.ttf"); }
+  @font-face { font-family: "Serif"; font-style: italic; src: url("../../../tesseract/fonts/instrumentserif/InstrumentSerif-Italic.ttf"); }
+  @font-face { font-family: "Mono"; src: url("../../../tesseract/fonts/spacemono/SpaceMono-Regular.ttf"); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #07060D; }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; color: #F3EDE2; }
+  canvas, svg.full { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+  #maze3d { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; perspective: 1500px; perspective-origin: 540px 700px; }
+  #mazeSvg { position: absolute; left: 90px; top: 410px; width: 900px; height: 900px; overflow: visible; }
+  .line { position: absolute; left: 70px; width: 940px; text-align: center; font-family: "Serif"; font-size: 76px;
+          line-height: 1.04; letter-spacing: -0.01em; visibility: hidden; text-shadow: 0 2px 30px rgba(0,0,0,.45); }
+  .line.it { font-style: italic; }
+  .line .ch { display: inline-block; }
+  .chapter { position: absolute; left: 0; width: 1080px; top: 292px; text-align: center; font-family: "Mono";
+             font-size: 24px; letter-spacing: 0.32em; opacity: 0; }
+  .chapter .rule { display: block; width: 64px; height: 2px; margin: 18px auto 0; background: currentColor; opacity: .6; }
+  .mono { font-family: "Mono"; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="fluid" width="1080" height="1920"></canvas>
+  <div id="maze3d"><svg id="mazeSvg" viewBox="-450 -450 900 900"><g id="maze"></g></svg></div>
+  <svg class="full" id="geo" viewBox="0 0 1080 1920">
+    <defs>
+      <radialGradient id="sunFill" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#FFE6A8"/><stop offset="45%" stop-color="#FF9A3C"/><stop offset="100%" stop-color="#FF4A1C"/>
+      </radialGradient>
+      <path id="ringPath" d=""/>
+    </defs>
+    <g id="clouds"></g>
+    <g id="sun"><circle id="sunHalo" r="0" fill="none"/><circle id="sunDisc" r="0" fill="url(#sunFill)"/>
+      <g id="stars"></g><text id="ringText" class="mono" font-size="22" letter-spacing="9"><textPath href="#ringPath"></textPath></text></g>
+    <g id="scale"></g>
+    <g id="sea"></g>
+    <g id="ripples"></g>
+    <g id="daedalus"></g>
+    <g id="icarus"></g>
+    <g id="loose"></g>
+  </svg>
+  <div id="lines"></div>
+  <div id="chapters"></div>
+</div>
+<script src="../../lib/fluid.js"></script>
+<script>
+(async function build() {
+  gsap.registerPlugin(DrawSVGPlugin);
+  const P = window.__props;
+  const FPS = window.__fps || 60;
+  const C = P.palette;
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, attrs, parent) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+  const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const R = rng(P.seed ?? 11);
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const lin = (h) => hex(h).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const mix = (a, b, k) => a + (b - a) * k;
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+
+  await document.fonts.load('76px "Serif"'); await document.fonts.load('italic 76px "Serif"'); await document.fonts.load('24px "Mono"');
+
+  const LEAD = 0.5;
+  const T = (x) => x + LEAD;
+  const tl = gsap.timeline({ paused: true });
+  const events = [];
+  const ev = (at, kind, extra = {}) => events.push({ at, kind, ...extra });
+  const S = P.scenes;   // scene start times
+
+  // ---------- proxies the timeline tweens; draw() turns them into attributes every frame ----------
+  const BG = { top: lin(C.ink), bottom: lin(C.ink) };
+  const SIM = { curl: 18, velDiss: 0.25, dyeDiss: 0.35, windY: 0, noise: 0, buoyY: 0, exposure: 1.3, relief: 0.6 };
+  const ICA = { x: 540, y: 860, s: 0.36, r: 0, flapAmp: 0, flapPh: 0, rest: -18, alpha: 0 };
+  const DAE = { x: 540, y: 860, s: 0.30, r: 0, flapAmp: 0, flapPh: 0, rest: -18, alpha: 0 };
+  const SUN = { x: 540, y: 470, r: 0, halo: 0, star: 0, spin: 0, ring: 0 };
+  const SEA = { y: 2150, amp: 14, alpha: 0 };
+  const EM = { smoke: 0, burst: 0, trail: 0, heat: 0, wax: 0, drip: 0, sea: 0, fallTrail: 0, calm: 0 };
+  const bgTo = (at, top, bottom, dur = 1.6) => {
+    tl.to(BG.top, { endArray: lin(top), duration: dur, ease: "sine.inOut" }, T(at));
+    tl.to(BG.bottom, { endArray: lin(bottom), duration: dur, ease: "sine.inOut" }, T(at));
+  };
+
+  // ---------- chapters + lines ----------
+  P.chapters.forEach((c, i) => {
+    const d = document.createElement("div");
+    d.className = "chapter";
+    d.innerHTML = `<span></span><span class="rule"></span>`;
+    d.firstChild.textContent = c.text;
+    $("#chapters").appendChild(d);
+    tl.fromTo(d, { opacity: 0, y: 14 }, { opacity: 0.85, y: 0, duration: 0.7, ease: "power2.out", immediateRender: false }, T(c.at));
+    if (c.out) tl.to(d, { opacity: 0, duration: 0.35 }, T(c.out - 0.35));
+  });
+  const box = $("#lines");
+  const lineEls = P.lines.map((L) => {
+    const d = document.createElement("div");
+    d.className = "line" + (L.italic ? " it" : "");
+    d.style.top = `${L.y ?? 1400}px`;
+    if (L.size) d.style.fontSize = `${L.size}px`;
+    if (L.color) d.style.color = C[L.color] ?? L.color;
+    if (L.mono) { d.style.fontFamily = "Mono"; d.style.letterSpacing = "0.28em"; }
+    // chars wrapped by word, so a word never breaks across lines
+    d.innerHTML = L.text.split("\n").map((row) => row.split(" ").map((w) =>
+      `<span style="display:inline-block;white-space:nowrap">${[...w].map((c) => `<span class="ch">${c}</span>`).join("")}</span>`)
+      .join(" ")).join("<br>");
+    box.appendChild(d);
+    const chars = d.querySelectorAll(".ch");
+    tl.set(d, { visibility: "visible" }, T(L.at));
+    tl.from(chars, { opacity: 0, y: 34, filter: "blur(10px)", duration: 0.75, ease: "power3.out",
+      stagger: Math.min(0.035, 0.9 / chars.length) }, T(L.at));
+    if (L.out) tl.to(d, { opacity: 0, y: -18, filter: "blur(8px)", duration: 0.45, ease: "power2.in" }, T(L.out - 0.45));
+    if (L.bell !== undefined) ev(L.at + 0.05, "bell", { note: L.bell });
+    return d;
+  });
+
+  // ---------- I. the labyrinth: a seeded polar maze (recursive backtracker) ----------
+  const maze = $("#maze");
+  const counts = P.maze.counts, r0 = P.maze.r0, rw = P.maze.ring;
+  const cells = counts.map((n) => Array.from({ length: n }, () => ({ v: false, cw: false, out: new Set(), inn: false })));
+  const nb = (i, j) => {
+    const n = counts[i], list = [[i, (j + 1) % n, "cw"], [i, (j - 1 + n) % n, "ccw"]];
+    if (i > 0) list.push([i - 1, Math.floor(j * counts[i - 1] / n), "in"]);
+    if (i + 1 < counts.length) { const k = counts[i + 1] / n; for (let c = 0; c < k; c++) list.push([i + 1, j * k + c, "out"]); }
+    return list;
+  };
+  const stack = [[0, 0]]; cells[0][0].v = true; cells[0][0].inn = true;     // ring 0, cell 0 opens to the centre
+  while (stack.length) {
+    const [i, j] = stack[stack.length - 1];
+    const open = nb(i, j).filter(([a, b]) => !cells[a][b].v);
+    if (!open.length) { stack.pop(); continue; }
+    const [a, b, dir] = open[Math.floor(R() * open.length)];
+    if (dir === "cw") cells[i][j].cw = true;
+    else if (dir === "ccw") cells[a][b].cw = true;
+    else if (dir === "in") cells[i][j].inn = true;
+    else cells[a][b].inn = true;
+    cells[a][b].v = true; stack.push([a, b]);
+  }
+  const walls = [];
+  const arc = (r, a0, a1) => `M${r * Math.cos(a0)},${r * Math.sin(a0)} A${r},${r} 0 0 1 ${r * Math.cos(a1)},${r * Math.sin(a1)}`;
+  counts.forEach((n, i) => {
+    const rin = r0 + i * rw, rout = rin + rw;
+    for (let j = 0; j < n; j++) {
+      const a0 = (j / n) * Math.PI * 2 - Math.PI / 2, a1 = ((j + 1) / n) * Math.PI * 2 - Math.PI / 2;
+      if (!cells[i][j].inn) walls.push({ d: arc(rin, a0, a1), r: rin });
+      if (!cells[i][j].cw) walls.push({ d: `M${rin * Math.cos(a1)},${rin * Math.sin(a1)} L${rout * Math.cos(a1)},${rout * Math.sin(a1)}`, r: rin + rw / 2 });
+    }
+  });
+  const rMax = r0 + counts.length * rw;
+  for (let j = 0; j < 4; j++) walls.push({ d: arc(rMax, j * Math.PI / 2, (j + 1) * Math.PI / 2), r: rMax });   // no exit
+  const wallEls = walls.map((w) => el("path", { d: w.d, fill: "none", stroke: C.gold, "stroke-width": 5, "stroke-linecap": "round" }, maze));
+  const twin = [el("circle", { cx: -9, cy: 0, r: 8, fill: C.gold }, maze), el("circle", { cx: 9, cy: 0, r: 8, fill: C.bone }, maze)];
+
+  tl.from(wallEls, { drawSVG: 0, duration: 0.9, ease: "power2.out",
+    stagger: (i) => (walls[i].r / rMax) * 2.6 }, T(S.maze));
+  tl.from(twin, { scale: 0, transformOrigin: "50% 50%", duration: 0.6, ease: "back.out(2)", stagger: 0.15 }, T(S.maze + 0.2));
+  tl.fromTo("#mazeSvg", { rotation: -40 }, { rotation: 18, duration: S.wings, ease: "none" }, T(0));
+  // "Minos owns land and sea": the walls flush, then "not the sky": the maze tilts to the floor and falls away
+  tl.to(wallEls, { stroke: C.sun, duration: 0.5, stagger: { each: 0.004, from: "end" } }, T(P.beats.minos));
+  tl.to("#mazeSvg", { rotationX: 72, y: 520, scale: 0.75, duration: 1.8, ease: "power2.in" }, T(P.beats.sky));
+  tl.to("#mazeSvg", { opacity: 0, duration: 0.5 }, T(P.beats.sky + 1.4));
+  tl.to(EM, { smoke: 1, duration: 2.0 }, T(0));
+  tl.to(EM, { smoke: 0, duration: 1.2 }, T(P.beats.sky + 0.6));
+  tl.fromTo(EM, { burst: 0 }, { burst: 1, duration: 0.5, ease: "power2.out", immediateRender: false }, T(P.beats.sky + 0.15));
+  tl.to(EM, { burst: 0, duration: 0.9 }, T(P.beats.sky + 0.65));
+  ev(S.maze, "section", { chord: [38, 45, 50, 53], level: 0.55, bright: 0.25 });
+  ev(P.beats.minos, "hit", { level: 0.5 });
+  ev(P.beats.sky, "whoosh", { dur: 1.6, up: true });
+
+  // ---------- figures: a head, a body and two wings of nine feathers, shortest to longest ----------
+  function figure(root, colour) {
+    const g = el("g", {}, root);
+    const wings = [];
+    const feathers = [];
+    for (const side of [-1, 1]) {
+      const wing = el("g", {}, g);
+      for (let i = 0; i < 9; i++) {
+        const L = 110 + i * 32, rx = side * (26 + i * 28), ry = 4 - i * 7, a = -side * (8 + i * 8);
+        const home = el("g", { transform: `translate(${rx} ${ry}) rotate(${a})` }, wing);
+        const f = el("g", {}, home);
+        el("path", { d: `M0,0 Q${11 + i},${L * 0.45} 0,${L} Q${-11 - i},${L * 0.45} 0,0Z`, fill: colour, opacity: 0.94 }, f);
+        el("path", { d: `M0,4 L0,${L - 8}`, stroke: C.gold, "stroke-width": 2.2, opacity: 0.8 }, f);
+        feathers.push({ side, i, L, a, home, f, wing, arrive: 0, ox: 0, oy: 0, orot: 0, td: null, M0: null });
+      }
+      el("path", { d: `M${side * 26},4 L${side * 262},-52`, stroke: C.gold, "stroke-width": 12, "stroke-linecap": "round", fill: "none", class: "wax" }, wing);
+      wings.push({ side, el: wing });
+    }
+    const wax = g.querySelectorAll(".wax");
+    el("path", { d: "M0,-6 L0,138", stroke: colour, "stroke-width": 20, "stroke-linecap": "round" }, g);
+    el("circle", { cx: 0, cy: -44, r: 25, fill: colour }, g);
+    return { g, wings, feathers, wax };
+  }
+  const ica = figure($("#icarus"), C.bone);
+  const dae = figure($("#daedalus"), C.gold);
+  dae.feathers.forEach((f) => (f.arrive = 1));
+
+  function pose(fig, st, t) {
+    fig.g.setAttribute("transform", `translate(${st.x} ${st.y}) rotate(${st.r}) scale(${st.s})`);
+    fig.g.setAttribute("opacity", st.alpha);
+    const flap = st.flapAmp * Math.sin(st.flapPh * Math.PI * 2);
+    for (const w of fig.wings) w.el.setAttribute("transform", `rotate(${w.side * (st.rest + flap)})`);
+    for (const f of fig.feathers) {
+      const k = 1 - f.arrive;
+      f.f.setAttribute("transform", `translate(${f.ox * k} ${f.oy * k}) rotate(${f.orot * k})`);
+      f.f.setAttribute("opacity", f.td !== null && t >= f.td ? 0 : clamp(f.arrive * 3));
+    }
+  }
+
+  // ---------- II. the wings ----------
+  const order = ica.feathers.map((f, n) => n).sort((a, b) => (ica.feathers[a].i - ica.feathers[b].i) || (ica.feathers[a].side - ica.feathers[b].side));
+  order.forEach((n, k) => {
+    const f = ica.feathers[n];
+    const ang = R() * Math.PI * 2, dist = 700 + R() * 600;
+    f.ox = Math.cos(ang) * dist; f.oy = Math.sin(ang) * dist; f.orot = (R() - 0.5) * 540;
+    const at = S.wings + 0.5 + k * (P.beats.featherSpan / 18);
+    tl.to(f, { arrive: 1, duration: 1.1, ease: "expo.out" }, T(at));
+    // pipes: a shorter feather is a higher note
+    ev(at + 0.55, "pluck", { note: P.pipes[8 - f.i], pan: f.side * 0.5 });
+  });
+  tl.set(ICA, { alpha: 1, s: 1.0, y: 820, rest: -10 }, T(S.wings));
+  tl.from(ica.g.querySelectorAll(":scope > path:not(:first-of-type), :scope > circle"), { opacity: 0, duration: 0.6 }, T(S.wings));
+  tl.from(ica.wax, { drawSVG: 0, duration: 1.4, ease: "power2.inOut" }, T(P.beats.wax));
+  tl.set(ica.wax, { opacity: 1 }, T(0));
+  tl.fromTo(EM, { wax: 0 }, { wax: 1, duration: 0.4, immediateRender: false }, T(P.beats.wax));
+  tl.to(EM, { wax: 0, duration: 0.8 }, T(P.beats.wax + 1.6));
+  tl.to(ICA, { flapAmp: 16, duration: 0.5 }, T(P.beats.wax + 1.5));
+  tl.fromTo(ICA, { flapPh: 0 }, { flapPh: 2, duration: 1.4, ease: "sine.inOut", immediateRender: false }, T(P.beats.wax + 1.5));
+  tl.to(ICA, { flapAmp: 0, duration: 0.4 }, T(P.beats.wax + 2.6));
+  ev(S.wings, "section", { chord: [50, 53, 57, 64], level: 0.5, bright: 0.45 });
+  ev(P.beats.wax, "swell", { dur: 1.6 });
+  bgTo(S.wings - 0.8, C.indigo, C.ink2);
+  // clear the sky burst before the feathers arrive
+  tl.to(SIM, { dyeDiss: 1.4, duration: 0.6 }, T(S.wings - 1.2));
+  tl.to(SIM, { dyeDiss: 0.35, duration: 0.8 }, T(S.wings + 1.0));
+
+  // ---------- III. the warning: sun above, sea below, the middle marked ----------
+  const scale = $("#scale");
+  const sx = 960;
+  const scaleParts = [el("path", { d: `M${sx},640 L${sx},1640`, stroke: C.bone, "stroke-width": 2, opacity: 0.7 }, scale)];
+  for (let y = 640; y <= 1640; y += 50) scaleParts.push(el("path", { d: `M${sx - (y % 250 === 140 ? 22 : 10)},${y} L${sx},${y}`, stroke: C.bone, "stroke-width": 2, opacity: 0.6 }, scale));
+  const band = el("rect", { x: 70, y: 1000, width: 870, height: 220, fill: C.bone, opacity: 0.06 }, scale);
+  const bandEdges = [el("path", { d: "M70,1000 L940,1000", stroke: C.bone, "stroke-width": 1.5, "stroke-dasharray": "6 10", opacity: 0.7 }, scale),
+    el("path", { d: "M70,1220 L940,1220", stroke: C.bone, "stroke-width": 1.5, "stroke-dasharray": "6 10", opacity: 0.7 }, scale)];
+  const labels = [["SOL", 660, C.sun], ["MEDIO", 1118, C.bone], ["MAR", 1630, C.aegeanLight]].map(([t, y, c]) => {
+    const e = el("text", { x: sx - 34, y, fill: c, "font-size": 22, "text-anchor": "end", "letter-spacing": 6, class: "mono" }, scale);
+    e.textContent = t; return e;
+  });
+  tl.from(scaleParts, { drawSVG: 0, duration: 0.5, stagger: 0.02, ease: "power2.out" }, T(S.warn + 0.2));
+  tl.from(labels, { opacity: 0, x: 20, duration: 0.5, stagger: 0.15 }, T(S.warn + 0.5));
+  tl.from(bandEdges, { drawSVG: 0, duration: 0.9, ease: "power2.inOut" }, T(P.beats.middle));
+  tl.from(band, { opacity: 0, duration: 0.9 }, T(P.beats.middle));
+  tl.to([scale], { opacity: 0, duration: 0.6 }, T(S.flight - 0.2));
+  // the figures shrink into the middle band, father left, son right
+  tl.to(ICA, { s: 0.42, x: 700, y: 1080, duration: 1.6, ease: "power3.inOut" }, T(S.warn - 0.4));
+  tl.set(DAE, { x: 340, y: 1260, s: 0.42, alpha: 0 }, T(0));
+  tl.to(DAE, { alpha: 1, y: 1080, duration: 1.4, ease: "power3.out" }, T(S.warn + 0.4));
+  tl.to(SUN, { r: 64, halo: 100, star: 0.35, ring: 0, duration: 1.4, ease: "power3.out" }, T(S.warn + 0.3));
+  tl.to(SEA, { y: 1720, alpha: 1, duration: 1.6, ease: "power3.out" }, T(S.warn + 0.3));
+  tl.to(EM, { sea: 0.6, duration: 1.2 }, T(S.warn + 0.3));
+  // "too low": the sea lifts toward them; "too high": the sun flares
+  tl.to(SEA, { y: 1560, amp: 30, duration: 0.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, T(P.beats.low));
+  tl.to(SUN, { halo: 190, duration: 0.6, yoyo: true, repeat: 1, ease: "sine.inOut" }, T(P.beats.high));
+  ev(S.warn, "section", { chord: [46, 53, 57, 62], level: 0.5, bright: 0.4 });
+  bgTo(S.warn - 0.5, C.dusk, C.seaDeep);
+
+  // ---------- IV. the flight ----------
+  for (const st of [ICA, DAE]) {
+    tl.to(st, { flapAmp: 26, rest: -4, duration: 0.6 }, T(S.flight));
+    tl.fromTo(st, { flapPh: 0 }, { flapPh: (P.beats.melt - S.flight) * 1.6, duration: P.beats.melt - S.flight, ease: "none", immediateRender: false }, T(S.flight));
+  }
+  tl.to(ICA, { y: 980, x: 600, s: 0.5, duration: 2.4, ease: "sine.inOut" }, T(S.flight));
+  tl.to(DAE, { y: 1000, x: 420, duration: 2.4, ease: "sine.inOut" }, T(S.flight));
+  tl.to(ICA, { y: 760, x: 560, s: 0.56, r: -6, duration: 2.6, ease: "power2.inOut" }, T(P.beats.more));
+  tl.to(DAE, { y: 1460, x: 300, s: 0.30, duration: 3.0, ease: "power2.inOut" }, T(P.beats.more));
+  tl.to(DAE, { alpha: 0, duration: 1.0 }, T(P.beats.more + 2.2));
+  tl.to(SUN, { r: 0, halo: 0, star: 0, duration: 1.0, ease: "power2.in" }, T(S.flight + 0.2));
+  tl.to(SEA, { y: 2200, duration: 2.0, ease: "power2.in" }, T(S.flight));
+  tl.to(EM, { sea: 0, duration: 1.0 }, T(S.flight));
+  tl.to(EM, { trail: 1, duration: 0.6 }, T(S.flight));
+  tl.to(SIM, { windY: 120, noise: 1.0, curl: 34, velDiss: 0.15, dyeDiss: 0.5, duration: 1.0 }, T(S.flight));
+  // clouds: thin rings that fall past while the figures climb
+  const clouds = $("#clouds");
+  const cloudEls = Array.from({ length: 14 }, (_, i) => {
+    const g = el("g", {}, clouds);
+    const w = 120 + R() * 220;
+    for (let k = 0; k < 3; k++) el("ellipse", { cx: 0, cy: 0, rx: w * (1 - k * 0.22), ry: w * 0.16 * (1 - k * 0.22), fill: "none", stroke: C.bone, "stroke-width": 1.6, opacity: 0.35 - k * 0.08 }, g);
+    return { g, x: 60 + R() * 960, y0: -300 - i * 260, speed: 520 + R() * 260 };
+  });
+  ev(S.flight, "section", { chord: [41, 48, 57, 67], level: 0.6, bright: 0.75, pulse: 100 });
+  ev(P.beats.more, "section", { chord: [48, 55, 64, 74], level: 0.62, bright: 0.85, pulse: 112 });
+  for (let k = 0; k < 6; k++) ev(S.flight + k * 1.25, "whoosh", { dur: 0.7, level: 0.35 });
+  bgTo(S.flight - 0.3, C.sky, C.skyLow, 2.0);
+
+  // ---------- V. the sun ----------
+  const stars = $("#stars");
+  const starEls = [[12, 0.62], [8, 0.5], [16, 0.78]].map(([n, k], i) => {
+    let d = "";
+    for (let j = 0; j <= n * 2; j++) { const a = (j / (n * 2)) * Math.PI * 2, r = j % 2 ? 1 : k; d += `${j ? "L" : "M"}${Math.cos(a) * r * 100},${Math.sin(a) * r * 100} `; }
+    return el("path", { d: d + "Z", fill: "none", stroke: i === 1 ? C.bone : C.gold, "stroke-width": 1.2, "vector-effect": "non-scaling-stroke", opacity: 0.85 }, stars);
+  });
+  $("#ringText textPath").textContent = P.ring;
+  tl.set(SUN, { x: 540, y: 600 }, T(S.sun - 0.1));
+  tl.to(SUN, { r: 280, halo: 360, star: 1, ring: 1, duration: 4.0, ease: "power2.inOut" }, T(S.sun));
+  tl.to(SUN, { spin: 120, duration: P.beats.fall - S.sun, ease: "none" }, T(S.sun));
+  tl.to(ICA, { y: 1090, x: 540, s: 0.52, r: 0, duration: 1.2, ease: "sine.inOut" }, T(S.sun));
+  tl.to(ICA, { y: 1010, duration: 4.0, ease: "sine.inOut" }, T(S.sun + 1.2));
+  tl.to(EM, { trail: 0.45, heat: 1, duration: 1.4 }, T(S.sun));
+  tl.to(SIM, { windY: 0, noise: 1.6, curl: 46, dyeDiss: 0.32, buoyY: -260, exposure: 1.6, duration: 2.0 }, T(S.sun));
+  ev(S.sun, "section", { chord: [50, 56, 57, 62], level: 0.65, bright: 0.9 });
+  ev(S.sun, "riser", { dur: P.beats.melt - S.sun - 0.1 });
+  ev(S.sun + 0.4, "heart", { until: P.beats.melt, from_bpm: 70, to_bpm: 150 });
+  bgTo(S.sun - 0.3, C.sunDeep, C.wine, 3.0);
+
+  // ---------- VI. the wax melts: feathers come loose and fall under drag ----------
+  const melt = P.beats.melt, fall = P.beats.fall, impact = P.beats.impact;
+  const meltOrder = ica.feathers.map((f, n) => n).sort((a, b) => (ica.feathers[b].i - ica.feathers[a].i) || (ica.feathers[a].side - ica.feathers[b].side));
+  meltOrder.forEach((n, k) => {
+    const f = ica.feathers[n];
+    f.td = melt + 0.25 + k * ((fall - melt - 0.2) / 18) + (R() - 0.5) * 0.08;
+    f.phase = R() * Math.PI * 2; f.w = 2.6 + R() * 1.4; f.drift = 50 + R() * 50;
+    if (k % 3 === 0) ev(f.td, "tick", { note: P.pipes[8 - f.i] - 12 });
+  });
+  tl.to(ica.wax, { opacity: 0, duration: 1.5 }, T(melt + 0.4));
+  tl.to(EM, { trail: 0, heat: 0.5, drip: 1, duration: 0.6 }, T(melt));
+  tl.to(SIM, { buoyY: 520, duration: 1.5 }, T(melt));
+  tl.to(ICA, { flapAmp: 40, duration: 1.0 }, T(melt + 1.2));
+  ev(melt, "section", { chord: [50, 56, 57, 62], level: 0.55, bright: 0.6, bend: -2, glide: fall - melt });
+
+  // ---------- VII. the fall and the sea ----------
+  tl.to(ICA, { flapAmp: 6, duration: 0.4 }, T(fall));
+  tl.to(ICA, { y: P.sea.impact, r: 170, duration: impact - fall, ease: "power2.in" }, T(fall));
+  tl.to(ICA, { alpha: 0, duration: 0.06 }, T(impact));
+  tl.to(SUN, { y: -500, duration: 1.0, ease: "power2.in" }, T(fall));
+  tl.to(SEA, { y: P.sea.impact + 10, amp: 18, alpha: 1, duration: impact - fall, ease: "power3.out" }, T(fall));
+  tl.to(EM, { drip: 0, heat: 0, fallTrail: 1, sea: 1, duration: 0.5 }, T(fall));
+  tl.to(EM, { fallTrail: 0, duration: 0.1 }, T(impact));
+  tl.to(SIM, { buoyY: 0, curl: 30, noise: 0.5, exposure: 1.4, duration: 1.0 }, T(fall));
+  tl.to(SIM, { curl: 14, noise: 0.25, velDiss: 0.35, dyeDiss: 0.22, duration: 2.0 }, T(impact + 0.8));
+  const ripples = $("#ripples");
+  const rippleEls = Array.from({ length: 6 }, () => el("ellipse", { cx: 540, cy: P.sea.impact + 10, rx: 0, ry: 0, fill: "none", stroke: C.bone, "stroke-width": 3 }, ripples));
+  rippleEls.forEach((e, k) => {
+    tl.fromTo(e, { attr: { rx: 10, ry: 3 }, opacity: 0.9 }, { attr: { rx: 520 + k * 60, ry: 70 + k * 10 }, opacity: 0, duration: 2.6 + k * 0.3, ease: "power2.out", immediateRender: false }, T(impact + k * 0.22));
+  });
+  ev(fall, "section", { chord: [38, 45], level: 0.25, bright: 0.2 });
+  ev(fall, "fall", { dur: impact - fall });
+  ev(impact, "splash", {});
+  bgTo(fall + 0.2, C.seaSky, C.seaDeep, impact - fall);
+
+  // ---------- epilogue: one feather settles on the water ----------
+  tl.to(SEA, { y: P.sea.rest, amp: 10, duration: 3.0, ease: "power2.inOut" }, T(impact + 0.6));
+  tl.to(EM, { sea: 0.35, calm: 1, duration: 2.0 }, T(impact + 0.6));
+  const lone = el("g", {}, $("#loose"));
+  const loneF = el("g", {}, lone);
+  el("path", { d: "M0,0 Q16,110 0,250 Q-16,110 0,0Z", fill: C.bone }, loneF);
+  el("path", { d: "M0,4 L0,242", stroke: C.gold, "stroke-width": 2.2 }, loneF);
+  const LONE = { t0: P.beats.lone, land: P.beats.lone + 3.6 };
+  ev(S.end, "section", { chord: [50, 54, 57, 64], level: 0.45, bright: 0.5 });
+  ev(LONE.land, "bell", { note: 74 });
+  ev(P.duration - 3.0, "fade", { dur: 3.0 });
+  bgTo(S.end, C.seaSky, C.seaDeep, 2);
+  tl.to(SIM, { exposure: 0.9, duration: 3 }, T(P.duration - 3.2));
+
+  // loose feathers: copies that take over from the wing at td
+  const looseEls = ica.feathers.map((f) => {
+    const g = el("g", { opacity: 0 }, $("#loose"));
+    const inner = f.f.cloneNode(true);
+    inner.removeAttribute("transform"); inner.removeAttribute("opacity");
+    g.appendChild(inner);
+    return g;
+  });
+
+  // ---------- per-frame drawing ----------
+  const seaG = $("#sea");
+  const waves = Array.from({ length: 5 }, (_, k) => el("path", { fill: "none", stroke: k ? C.aegeanLight : C.bone, "stroke-width": k ? 1.6 : 2.4, opacity: k ? 0.5 - k * 0.07 : 0.85 }, seaG));
+  const seaFill = el("path", { fill: C.seaDeep, opacity: 0.55 }, seaG);
+  const ringPath = $("#ringPath");
+
+  function waveY(x, t, k) { return SEA.y + k * 46 + Math.sin(x * 0.012 + t * 1.6 + k * 1.3) * SEA.amp * (1 + k * 0.2) + Math.sin(x * 0.031 - t * 2.3 + k) * SEA.amp * 0.35; }
+
+  function draw(t) {
+    pose(ica, ICA, t);
+    pose(dae, DAE, t);
+    // sun
+    $("#sun").setAttribute("transform", `translate(${SUN.x} ${SUN.y})`);
+    $("#sunDisc").setAttribute("r", SUN.r);
+    const halo = $("#sunHalo");
+    halo.setAttribute("r", SUN.halo); halo.setAttribute("stroke", C.sun); halo.setAttribute("stroke-width", 2); halo.setAttribute("opacity", SUN.halo > 0 ? 0.6 : 0);
+    starEls.forEach((s, i) => s.setAttribute("transform", `rotate(${SUN.spin * (i === 1 ? -1.4 : 1 + i * 0.3)}) scale(${(SUN.r / 100) * (1.25 + i * 0.28) * SUN.star})`));
+    const rr = SUN.r + 70;
+    ringPath.setAttribute("d", `M${-rr},0 A${rr},${rr} 0 1 1 ${rr},0 A${rr},${rr} 0 1 1 ${-rr},0`);
+    const ring = $("#ringText");
+    ring.setAttribute("fill", C.bone); ring.setAttribute("opacity", SUN.ring * 0.9);
+    ring.setAttribute("transform", `rotate(${-SUN.spin * 0.8})`);
+    // sea
+    seaG.setAttribute("opacity", SEA.alpha);
+    let fill = "";
+    waves.forEach((w, k) => {
+      let d = "";
+      for (let x = -20; x <= 1100; x += 20) d += `${x === -20 ? "M" : "L"}${x},${waveY(x, t, k).toFixed(1)} `;
+      w.setAttribute("d", d);
+      if (k === 0) fill = d + "L1100,1940 L-20,1940 Z";
+    });
+    seaFill.setAttribute("d", fill);
+    // clouds fall past during the flight
+    const ct = clamp((t - S.flight) / (S.sun + 2 - S.flight), 0, 1) * (S.sun + 2 - S.flight);
+    cloudEls.forEach((c) => {
+      const y = c.y0 + ct * c.speed;
+      c.g.setAttribute("transform", `translate(${c.x} ${y})`);
+      c.g.setAttribute("opacity", t > S.flight && t < S.sun + 2.2 ? 1 : 0);
+    });
+    // loose feathers: terminal-velocity fall with a pendulum flutter (analytic, so seekable)
+    ica.feathers.forEach((f, n) => {
+      const g = looseEls[n];
+      if (f.td === null || t < f.td || !f.M0) { g.setAttribute("opacity", 0); return; }
+      const tau = t - f.td, k = 1.5, vt = 560;
+      const fallY = vt * (tau - (1 - Math.exp(-k * tau)) / k);
+      const dx = f.side * f.drift * (1 - Math.exp(-k * tau)) * 2 + Math.sin(f.w * tau + f.phase) * 46 * (1 - Math.exp(-tau * 2));
+      const rot = 28 * Math.sin(f.w * tau + f.phase) * (1 - Math.exp(-tau * 2)) + f.side * 30 * tau;
+      const m = f.M0;
+      g.setAttribute("transform", `translate(${dx} ${fallY}) matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f}) rotate(${rot} 0 ${f.L / 2})`);
+      g.setAttribute("opacity", clamp(1 - (tau - 2.5) / 1.0));
+    });
+    // the lone feather of the epilogue
+    if (t >= LONE.t0) {
+      const tau = Math.min(t, LONE.land) - LONE.t0, dur = LONE.land - LONE.t0;
+      const y0 = -280, y1 = P.sea.rest - 6;
+      const p = tau / dur, e = 1 - (1 - p) * (1 - p);
+      const x = 600 + Math.sin(tau * 1.9) * 110 * (1 - p);
+      const after = Math.max(0, t - LONE.land);
+      const y = after > 0 ? waveY(x, t, 0) - 4 : mix(y0, y1, e);
+      const rot = after > 0 ? 90 + Math.sin(t * 1.6) * 4 : 90 * e + Math.sin(tau * 1.9 + 1) * 35 * (1 - p);
+      lone.setAttribute("transform", `translate(${x} ${y}) rotate(${rot}) translate(0 ${-125})`);
+      lone.setAttribute("opacity", 1);
+    } else lone.setAttribute("opacity", 0);
+  }
+
+  // ---------- fluid ----------
+  const F = window.Fluid($("#fluid"), { simRes: P.fluid?.simRes ?? 192, dyeRes: P.fluid?.dyeRes ?? 720 });
+  const col = (h, k) => lin(h).map((c) => c * k);
+  let simFrame = -1, prevTips = null, frameRng = null;
+  function tips() {
+    const out = [];
+    for (const fig of [ica, dae]) for (const side of [-1, 1]) {
+      const f = fig.feathers.find((q) => q.side === side && q.i === 8);
+      const m = f.f.getCTM();
+      out.push({ x: m.a * 0 + m.c * f.L + m.e, y: m.b * 0 + m.d * f.L + m.f, fig });
+    }
+    return out;
+  }
+  function emit(t, dt) {
+    const r = frameRng;
+    if (EM.smoke > 0.01) {
+      for (let k = 0; k < 2; k++) {
+        const a = t * 0.7 + k * Math.PI + r() * 0.4, rad = 470 + r() * 60;
+        const x = 540 + Math.cos(a) * rad, y = 860 + Math.sin(a) * rad;
+        F.splat(x, y, -Math.sin(a) * 480, Math.cos(a) * 480, col(k ? C.violet : C.gold, 0.035 * EM.smoke), 20);
+      }
+    }
+    if (EM.burst > 0.01) {
+      for (let k = 0; k < 3; k++) {
+        const x = 540 + (r() - 0.5) * 160;
+        F.splat(x, 900, (r() - 0.5) * 900, -3600 * EM.burst, col(k ? C.skyGlow : C.bone, 0.24 * EM.burst), 70);
+      }
+    }
+    if (EM.wax > 0.01) {
+      const u = r(), side = r() < 0.5 ? -1 : 1;
+      const x = ICA.x + side * mix(30, 262, u) * ICA.s, y = ICA.y + mix(4, -52, u) * ICA.s;
+      F.splat(x, y, side * 120, 380, col(C.gold, 0.4 * EM.wax), 16);
+    }
+    if (EM.sea > 0.01) {
+      for (let k = 0; k < 2; k++) {
+        const x = r() * 1080, y = SEA.y + 60 + r() * 240;
+        F.splat(x, y, (r() < 0.5 ? -1 : 1) * 700, (r() - 0.5) * 120, col(r() < 0.25 ? C.aegeanLight : C.aegean, 0.07 * EM.sea), 70);
+      }
+    }
+    const tp = tips();
+    if (prevTips && EM.trail > 0.01) {
+      tp.forEach((p, k) => {
+        if ((p.fig === dae ? DAE : ICA).alpha < 0.2) return;
+        const vx = (p.x - prevTips[k].x) / dt, vy = (p.y - prevTips[k].y) / dt;
+        F.splat(p.x, p.y, vx * 0.9, vy * 0.9 + 400, col(p.fig === dae ? C.gold : C.skyGlow, 0.22 * EM.trail), 15);
+      });
+    }
+    prevTips = tp;
+    if (EM.heat > 0.01) {
+      for (let k = 0; k < 3; k++) {
+        const a = r() * Math.PI * 2, rad = SUN.r * (0.95 + r() * 0.1);
+        const x = SUN.x + Math.cos(a) * rad, y = SUN.y + Math.sin(a) * rad;
+        const tan = (r() < 0.5 ? -1 : 1) * 900;
+        F.splat(x, y, Math.cos(a) * 700 - Math.sin(a) * tan, Math.sin(a) * 700 + Math.cos(a) * tan,
+          col(k === 0 ? C.sunCore : C.sun, 0.18 * EM.heat), 26 + r() * 20);
+      }
+    }
+    if (EM.drip > 0.01) {
+      for (let k = 0; k < 2; k++) {
+        const u = r(), side = r() < 0.5 ? -1 : 1;
+        const x = ICA.x + side * mix(30, 262, u) * ICA.s, y = ICA.y + mix(4, -52, u) * ICA.s + 20;
+        F.splat(x, y, side * 60, 900, col(C.gold, 0.3 * EM.drip), 12);
+      }
+    }
+    if (EM.fallTrail > 0.01) F.splat(ICA.x, ICA.y - 40, (r() - 0.5) * 200, -1400, col(C.bone, 0.25 * EM.fallTrail), 22);
+    if (EM.calm > 0.01 && r() < 0.12) F.splat(r() * 1080, SEA.y + 30 + r() * 120, (r() - 0.5) * 900, 0, col(C.aegeanLight, 0.05 * EM.calm), 40);
+  }
+  function splash() {
+    const y = P.sea.impact;
+    const r = rng(77);
+    for (let k = 0; k < 28; k++) {
+      const a = Math.PI + (k / 27) * Math.PI;   // upper half fan
+      const v = 2200 + r() * 2600;
+      F.splat(540 + Math.cos(a) * 20, y, Math.cos(a) * v, Math.sin(a) * v * 1.3, col(k % 3 ? C.aegeanLight : C.bone, 0.32), 26 + r() * 22);
+    }
+    for (let k = 0; k < 10; k++) F.splat(540 + (r() - 0.5) * 900, y + 40, (r() - 0.5) * 3000, 300, col(C.aegean, 0.4), 60);
+  }
+
+  function stepTo(target) {
+    if (target < simFrame) { F.reset(); simFrame = -1; prevTips = null; }
+    const dt = 1 / FPS;
+    const impactFrame = Math.round(impact * FPS);
+    while (simFrame < target) {
+      simFrame++;
+      const ts = simFrame / FPS;
+      tl.totalTime(T(ts));
+      draw(ts);
+      frameRng = rng(1000 + simFrame);
+      emit(ts, dt);
+      if (simFrame === impactFrame) splash();
+      F.step(dt, { curl: SIM.curl, velDiss: SIM.velDiss, dyeDiss: SIM.dyeDiss, iters: 24, wind: [0, SIM.windY],
+        noise: [SIM.noise * 900, 2.2, 0.35], buoy: [0, SIM.buoyY], time: ts });
+    }
+  }
+
+  // Each loose feather starts from the wing pose at its own release time.
+  for (const f of ica.feathers) {
+    tl.totalTime(T(f.td)); draw(f.td - 1e-4);
+    const m = f.f.getCTM();
+    f.M0 = { a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f };
+  }
+
+  window.__seek = (t) => {
+    const target = Math.round(t * FPS);
+    stepTo(target);
+    tl.totalTime(T(t));
+    draw(t);
+    F.render({ top: BG.top, bottom: BG.bottom, exposure: SIM.exposure, grain: 0.014, vignette: 0.45, frame: target, relief: SIM.relief });
+  };
+  window.__meta = { width: 1080, height: 1920, duration: P.duration, cues: [], sfx: {},
+    music: { script: "score.py", events: events.sort((a, b) => a.at - b.at) } };
+  window.__check = () => {
+    const bad = [];
+    lineEls.forEach((d, i) => {
+      const L = P.lines[i];
+      window.__seek(L.at + 1.2);
+      const r = d.getBoundingClientRect();
+      if (r.left < 40 || r.right > 1040) bad.push(`line ${i} "${L.text.slice(0, 24)}" x ${r.left | 0}–${r.right | 0}`);
+      if (r.top < 260 || r.bottom > 1620) bad.push(`line ${i} "${L.text.slice(0, 24)}" y ${r.top | 0}–${r.bottom | 0}`);
+    });
+    window.__seek(0);
+    return bad;
+  };
+  window.__seek(0);
+  window.__resolveReady();
+})().catch((e) => { console.error(e); throw e; });
+window.__ready = new Promise((r) => (window.__resolveReady = r));
+</script>
+</body>
+</html>

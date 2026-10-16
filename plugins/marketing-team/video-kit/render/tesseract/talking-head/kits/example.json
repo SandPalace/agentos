@@ -1,0 +1,88 @@
+{
+ "name": "Example kit (format) — replace it with your brand",
+ "source": "Format example. Write kits/<your-brand>.json with the colors and fonts the owner confirmed in facts.md.",
+ "palette": {
+  "purple": "#5C0F8B",
+  "turquoise": "#00CCBE",
+  "blue": "#0055B8",
+  "yellow": "#FFDC32",
+  "ink": "#0A0A0A",
+  "paper": "#F2F1EE",
+  "white": "#FFFFFF"
+ },
+ "on": {
+  "purple": "white",
+  "blue": "white",
+  "ink": "white",
+  "turquoise": "ink",
+  "yellow": "ink",
+  "paper": "ink"
+ },
+ "fonts": {
+  "light": "spacegrotesk/SpaceGrotesk-Light.ttf",
+  "regular": "spacegrotesk/SpaceGrotesk-Regular.ttf",
+  "bold": "spacegrotesk/SpaceGrotesk-Bold.ttf",
+  "mono": "spacemono/SpaceMono-Bold.ttf",
+  "medium": "spacegrotesk/SpaceGrotesk-Medium.ttf"
+ },
+ "curve": [
+  0.2,
+  0.8,
+  0.2,
+  1
+ ],
+ "grid": 90,
+ "hero": {
+  "font": "light",
+  "max_size": 250,
+  "max_width": 780,
+  "tracking": -40,
+  "band_h": 270,
+  "min_top": 450,
+  "corner_square": "ink"
+ },
+ "caption": {
+  "style": "stroke",
+  "font": "medium",
+  "hot_font": "bold",
+  "size": 64,
+  "hot_scale": 1.25,
+  "max_w": 900,
+  "y": 1452,
+  "tracking": -20,
+  "fill": "white",
+  "stroke": "ink",
+  "stroke_w": 10,
+  "hot_stroke_w": 12,
+  "hot_color": "path",
+  "bg": "ink",
+  "_note": "style 'stroke': bare text with outline; emphasis words (keywords + super words) bold, x1.25, path colour with the kit contrast colour as outline. style 'box' (v5–v7): flat blocks."
+ },
+ "label": {
+  "font": "mono",
+  "tracking": 60,
+  "counter_y": 360,
+  "counter_bg": "paper"
+ },
+ "chip": {
+  "bg": "ink",
+  "fg": "white",
+  "size": 46,
+  "strike": "yellow"
+ },
+ "cta": {
+  "bg": "yellow",
+  "fg": "ink",
+  "border": 5,
+  "shadow": 14,
+  "y": 1200,
+  "h": 120,
+  "size": 54
+ },
+ "rules": [
+  "One path colour per shot; never two on screen at once.",
+  "Only the CTA carries a border and hard shadow.",
+  "Motion is mechanical: one curve, durations in multiples of 120 ms, nothing bounces.",
+  "Space Grotesk stands in for Everett (the kit's declared open substitute)."
+ ]
+}
