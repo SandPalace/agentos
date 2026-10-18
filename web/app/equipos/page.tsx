@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic'
 import Header from '@/components/Header'
 import Modal from '@/components/Modal'
 import NameSuggest from '@/components/NameSuggest'
+import AgentDefEditor, { GlobalAgentDefs } from '@/components/AgentDefEditor'
+import { ClaudeIcon, CodexIcon } from '@/components/BrandIcons'
 import { AVATAR_PALETTES } from '@/components/office/officeLayout'
 import { COO_AGENT, ROSTERS, findAgent } from '@/lib/roster'
 import { sessionLink } from '@/lib/claude'
@@ -13,7 +15,7 @@ import type { Team, TeamMember } from '@/lib/types'
 const AvatarGallery = dynamic(() => import('@/components/AvatarGallery'), { ssr: false })
 const MAX_CONTEXT = 8000
 
-type DesktopSession = { id: string; title: string; cwd: string; lastActivityAt: number | null; archived: boolean; inProject?: boolean; linkedTo?: { project: string | null; team: string | null; agent: string }[] }
+type DesktopSession = { id: string; title: string; cwd: string; lastActivityAt: number | null; archived: boolean; surface?: 'code' | 'cowork'; inProject?: boolean; linkedTo?: { project: string | null; team: string | null; agent: string }[] }
 
 const shortFolder = (p: string) => p.replace(/^(\/Users\/[^/]+|\/home\/[^/]+|[A-Za-z]:\\Users\\[^\\]+)/, '~')
 function ago(ms: number | null): string {
@@ -27,8 +29,15 @@ function ago(ms: number | null): string {
   return d < 30 ? `hace ${d} d` : `hace ${Math.round(d / 30)} mes${Math.round(d / 30) === 1 ? '' : 'es'}`
 }
 
+// Sesiones de Claude Desktop (Code y Cowork), leídas una vez por página: las usan el selector y la línea que identifica cada campo.
+let desktopCache: Promise<{ available: boolean; sessions: DesktopSession[] }> | null = null
+const desktopSessions = (): Promise<{ available: boolean; sessions: DesktopSession[] }> =>
+  (desktopCache ??= getJson('/api/desktop/code-sessions').catch((e: unknown) => { desktopCache = null; throw e }))
+const folderName = (cwd: string) => (cwd ? cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd : '')
+
 function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: string) => void; onClose: () => void; current: string; taken: string[] }) {
   const [tab, setTab] = useState<'claude' | 'codex'>(() => (sessionLink(current)?.kind === 'codex' ? 'codex' : 'claude'))
+  const [surface, setSurface] = useState<'code' | 'cowork'>(() => (sessionLink(current)?.kind === 'cowork' ? 'cowork' : 'code'))
   const [data, setData] = useState<{ available: boolean; sessions: DesktopSession[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [q, setQ] = useState('')
@@ -38,16 +47,21 @@ function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: strin
   useEffect(() => {
     let alive = true
     setData(null); setErr(null)
-    getJson(codex ? '/api/codex/sessions' : '/api/desktop/code-sessions').then((d) => { if (alive) setData(d) }).catch((e) => { if (alive) setErr(e.message || 'No pude leer tus sesiones') })
+    if (!codex) desktopCache = null // al abrir el selector, lista fresca
+    const load: Promise<{ available: boolean; sessions: DesktopSession[] }> = codex ? getJson('/api/codex/sessions') : desktopSessions()
+    load.then((d) => { if (alive) setData(d) }).catch((e) => { if (alive) setErr(e.message || 'No pude leer tus sesiones') })
     return () => { alive = false }
   }, [codex])
   // Lo que se guarda en el campo: Codex usa el enlace completo para que coincida con lo ligado.
-  const refOf = (x: DesktopSession) => (codex ? `codex://threads/${x.id}` : x.id)
+  // Cowork: «cowork:local_…» (Desktop no abre tareas de Cowork por id; así la oficina sabe qué decir).
+  const refOf = (x: DesktopSession) => (codex ? `codex://threads/${x.id}` : x.surface === 'cowork' ? `cowork:${x.id}` : x.id)
+  const inSurface = (x: DesktopSession) => codex || (x.surface ?? 'code') === surface
+  const count = (k: 'code' | 'cowork') => (data?.sessions ?? []).filter((x) => (archived || !x.archived) && (x.surface ?? 'code') === k).length
   const needle = q.trim().toLowerCase()
   // Ya conectada = ligada a otro agente (guardado en cualquier proyecto, o en este equipo sin guardar). La del propio campo no cuenta.
   const busy = (x: DesktopSession) => refOf(x) !== current.trim() && (taken.includes(refOf(x)) || !!x.linkedTo?.length)
-  const hiddenLinked = (data?.sessions ?? []).filter((x) => (archived || !x.archived) && busy(x)).length
-  const shown = (data?.sessions ?? []).filter((x) => (archived || !x.archived) && (showLinked || !busy(x)) && (!needle || `${x.title} ${shortFolder(x.cwd)}`.toLowerCase().includes(needle)))
+  const hiddenLinked = (data?.sessions ?? []).filter((x) => inSurface(x) && (archived || !x.archived) && busy(x)).length
+  const shown = (data?.sessions ?? []).filter((x) => inSurface(x) && (archived || !x.archived) && (showLinked || !busy(x)) && (!needle || `${x.title} ${shortFolder(x.cwd)}`.toLowerCase().includes(needle)))
   // Una sección por carpeta (su nombre de subtítulo); primero las carpetas del proyecto actual, luego por actividad más reciente.
   const groups = useMemo(() => {
     const by = new Map<string, { key: string; name: string; path: string; inProject: boolean; last: number; items: DesktopSession[] }>()
@@ -69,10 +83,26 @@ function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: strin
         <h2 className="text-base font-bold text-ink">Elegir de mis sesiones</h2>
         <button type="button" onClick={onClose} className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-muted hover:bg-bg">Cerrar</button>
       </div>
-      <div role="tablist" aria-label="Aplicación" className="flex gap-1 border-b border-line px-4 pt-2">
-        {(['claude', 'codex'] as const).map((t) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-t-sm border-b-2 px-3 py-1.5 text-sm font-semibold ${tab === t ? 'border-blue text-blue' : 'border-transparent text-muted hover:text-ink'}`}>{t === 'claude' ? 'Claude' : 'Codex'}</button>
-        ))}
+      <div className="flex flex-col items-center border-b border-line px-4 py-3">
+        <div role="tablist" aria-label="Aplicación" className="inline-flex rounded-full border border-line bg-bg p-1">
+          {(['claude', 'codex'] as const).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${tab === t ? 'bg-surface text-ink ring-1 ring-line' : 'text-muted hover:text-ink'}`}>
+              {t === 'claude' ? <ClaudeIcon /> : <CodexIcon />}{t === 'claude' ? 'Claude' : 'Codex'}
+            </button>
+          ))}
+        </div>
+        {!codex && (
+          <div role="tablist" aria-label="Tipo de sesión de Claude" className="mt-2 flex justify-center gap-1">
+            {(['code', 'cowork'] as const).map((k) => (
+              <button key={k} type="button" role="tab" aria-selected={surface === k} onClick={() => setSurface(k)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${surface === k ? (k === 'cowork' ? 'bg-purple-soft text-purple' : 'bg-blue-soft text-blue') : 'text-muted hover:text-ink'}`}>
+                {k === 'code' ? 'Claude Code' : 'Cowork'}{data ? ` (${count(k)})` : ''}
+              </button>
+            ))}
+          </div>
+        )}
+        {!codex && surface === 'cowork' && <p className="mt-2 text-center text-[11px] text-muted">Claude Desktop no abre tareas de Cowork por enlace: al hablar con el agente se trae Claude al frente y te decimos qué tarea abrir.</p>}
       </div>
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2">
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título o carpeta" aria-label="Buscar sesión" className="min-w-[200px] flex-1 rounded-sm border border-line bg-surface px-3 py-1 text-sm text-ink outline-none focus:border-blue" />
@@ -83,8 +113,8 @@ function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: strin
         {err ? <p className="text-sm text-muted">{err}</p>
           : !data ? <p className="text-sm text-muted">Buscando tus sesiones…</p>
           : !data.available && codex ? <p className="text-sm text-muted">No encontré conversaciones de Codex en esta computadora.</p>
-          : !data.available ? <p className="text-sm text-muted">No encontré sesiones de Claude Desktop en esta computadora. Las sesiones en la nube (cse_… / session_…) se ligan pegando su enlace en el campo.</p>
-          : !groups.length ? <p className="text-sm text-muted">{data.sessions.length ? 'Ninguna sesión coincide con tu búsqueda.' : codex ? 'Todavía no tienes conversaciones de Codex.' : 'Todavía no tienes sesiones de Claude Code en Desktop.'}</p>
+          : !data.available ? <p className="text-sm text-muted">No encontré sesiones de Claude Desktop en esta computadora. Las sesiones en la nube (cse_… / session_…) y los chats se ligan pegando su enlace en el campo.</p>
+          : !groups.length ? <p className="text-sm text-muted">{data.sessions.length ? 'Ninguna sesión coincide con tu búsqueda.' : codex ? 'Todavía no tienes conversaciones de Codex.' : 'Todavía no tienes sesiones de Code ni de Cowork en Claude Desktop.'}</p>
           : groups.map((g) => (
             <section key={g.key} className="mb-4">
               <h3 className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -96,7 +126,9 @@ function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: strin
                 {g.items.map((x) => (
                   <li key={x.id} className="flex items-center gap-3 rounded-sm border border-line bg-surface px-3 py-2">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-ink">{x.title || 'Sin título'}{x.archived && <span className="ml-2 rounded-full bg-blue-soft px-2 py-0.5 text-[10px] font-semibold text-muted">Archivada</span>}</div>
+                      <div className="truncate text-sm font-semibold text-ink">
+                        {!codex && x.surface && <span className={`mr-2 rounded-full px-2 py-0.5 align-[1px] text-[10px] font-semibold ${x.surface === 'cowork' ? 'bg-purple-soft text-purple' : 'bg-blue-soft text-blue'}`}>{x.surface === 'cowork' ? 'Cowork' : 'Code'}</span>}
+                        {x.title || 'Sin título'}{x.archived && <span className="ml-2 rounded-full bg-blue-soft px-2 py-0.5 text-[10px] font-semibold text-muted">Archivada</span>}</div>
                       <div className="truncate text-[11px] text-muted">
                         {x.lastActivityAt ? ago(x.lastActivityAt) : ''}
                         {busy(x) && <span className="ml-1 font-semibold text-amber">· Ya conectada a {x.linkedTo?.length ? x.linkedTo.map((l) => (l.agent === 'coo' ? 'Assistant' : `${findAgent(l.agent)?.name ?? l.agent}${l.team ? ` (${l.team}${l.project ? ` · ${l.project}` : ''})` : ''}`)).join(', ') : 'otro agente de este equipo'}</span>}
@@ -116,6 +148,27 @@ function SessionPicker({ onPick, onClose, current, taken }: { onPick: (id: strin
 function SessionField({ id, label, value, onChange, emptyHint, taken = [] }: { id: string; label: string; value: string; onChange: (v: string) => void; emptyHint: string; taken?: string[] }) {
   const link = sessionLink(value)
   const [pick, setPick] = useState(false)
+  // Qué sesión es: tipo, título y carpeta (sesiones locales de Desktop). Un id local pegado a mano que resulta de Cowork se marca como tal.
+  const [info, setInfo] = useState<DesktopSession | null>(null)
+  const localId = value.trim().replace(/^cowork:/, '')
+  useEffect(() => {
+    setInfo(null)
+    if (!/^local_[A-Za-z0-9-]+$/.test(localId)) return
+    let alive = true
+    desktopSessions().then((d) => {
+      const x = d.sessions.find((s) => s.id === localId) ?? null
+      if (!alive) return
+      setInfo(x)
+      if (x?.surface === 'cowork' && value.trim() === localId) onChange(`cowork:${localId}`)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [localId])
+  const hint = !value.trim() ? emptyHint
+    : !link ? 'No la reconozco'
+    : link.kind === 'codex' ? 'Abre la conversación en Codex'
+    : link.kind === 'cowork' ? 'Tarea de Cowork: Claude Desktop no la abre por enlace; «Probar» trae Claude al frente y la eliges en Cowork'
+    : link.kind === 'code' ? (localId.startsWith('local_') ? 'Abre la sesión de Claude Code en Desktop' : 'Abre una sesión de Claude Code (nube)')
+    : link.kind === 'chat' ? 'Abre un chat' : 'Abre un proyecto'
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-xs font-semibold text-muted">Conversación</label>
@@ -131,7 +184,14 @@ function SessionField({ id, label, value, onChange, emptyHint, taken = [] }: { i
         <button type="button" onClick={() => setPick(true)} className="shrink-0 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink hover:bg-bg">Elegir de mis sesiones</button>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted">
-        <span>{!value.trim() ? emptyHint : link ? (link.kind === 'codex' ? 'Abre la conversación en Codex' : link.kind === 'code' ? (value.trim().startsWith('local_') ? 'Abre la conversación en Claude Desktop' : 'Abre una sesión de Claude Code') : link.kind === 'chat' ? 'Abre un chat' : 'Abre un proyecto') : 'No la reconozco'}</span>
+        {info && (
+          <span className="flex min-w-0 items-center gap-1.5 text-ink">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${info.surface === 'cowork' ? 'bg-purple-soft text-purple' : 'bg-blue-soft text-blue'}`}>{info.surface === 'cowork' ? 'Cowork' : 'Code'}</span>
+            <span className="truncate font-semibold">{info.title || 'Sin título'}</span>
+            {info.cwd && <span className="truncate text-muted" title={info.cwd}>· {folderName(info.cwd)}</span>}
+          </span>
+        )}
+        <span>{hint}</span>
         {link && <a href={link.url} className="rounded-full border border-line px-2 py-0.5 font-semibold text-blue hover:bg-bg">Probar</a>}
       </div>
       {pick && <SessionPicker current={value} taken={taken} onClose={() => setPick(false)} onPick={(sid) => { onChange(sid); setPick(false) }} />}
@@ -424,6 +484,7 @@ export default function EquiposPage() {
                       <span className="text-sm font-semibold">
                         {a?.name ?? m.agent_id}
                       </span>
+                      <label htmlFor={`name-${m.agent_id}`} className="text-xs font-semibold text-muted">Nombre</label>
                       <input
                         aria-label={`Nombre de ${a?.name ?? m.agent_id}`}
                         id={`name-${m.agent_id}`}
@@ -436,6 +497,7 @@ export default function EquiposPage() {
                       <NameSuggest face={faceOf(m)} label={a?.name ?? m.agent_id} current={m.display_name} taken={[...draft.members.map((x) => x.display_name), cooDraft.display_name]} onPick={(n) => setField(m.agent_id, { display_name: n })} />
                     </div>
                     <SessionField id={`session-${m.agent_id}`} label={a?.name ?? m.agent_id} taken={[...draft.members.filter((x) => x.agent_id !== m.agent_id).map((x) => x.session_ref ?? ''), cooDraft.session_ref ?? ''].filter(Boolean)} emptyHint="vacía, la E abre una conversación nueva en Cowork con «Hola, ahora eres un …»; envíala y pega aquí su enlace." value={m.session_ref ?? ''} onChange={(v) => setField(m.agent_id, { session_ref: v || null })} />
+                    <label htmlFor={`ctx-${m.agent_id}`} className="text-xs font-semibold text-muted">Contexto en este equipo</label>
                     <textarea
                       id={`ctx-${m.agent_id}`}
                       aria-label={`Contexto de ${a?.name ?? m.agent_id}`}
@@ -447,6 +509,10 @@ export default function EquiposPage() {
                       className="resize-y rounded-sm border border-line px-3 py-2 text-sm leading-relaxed outline-none focus:border-blue"
                     />
                     <div className="text-right font-mono text-[11px] text-muted">{m.context.length} / {MAX_CONTEXT}</div>
+                    <details className="group rounded-sm border border-line">
+                      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-muted hover:text-ink">Descripción del agente <span className="font-normal">(.claude/agents/{m.agent_id}.md de este proyecto)</span></summary>
+                      <div className="border-t border-line p-3"><AgentDefEditor agentId={m.agent_id} scope="project" /></div>
+                    </details>
                   </div>
                 )
               })}
@@ -469,6 +535,14 @@ export default function EquiposPage() {
         </section>
         )}
       </div>
+
+      <section className="card mt-6 flex flex-col gap-3 p-5" aria-label="Plantillas globales de agentes">
+        <div>
+          <h2 className="label">Plantillas globales de agentes</h2>
+          <p className="mt-1 text-xs text-muted">Archivos en ~/.claude/agents: valen en cualquier carpeta y son la base de la copia de cada proyecto. Si un proyecto no tiene copia propia, usa esta plantilla; si no hay plantilla, el original del plugin.</p>
+        </div>
+        <GlobalAgentDefs />
+      </section>
 
       {picking && (
         <div className="fixed inset-0 flex items-center justify-center bg-ink/40 p-4" style={{ zIndex: 50 }} onClick={() => setPicking(null)}>

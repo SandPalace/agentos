@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Instalador de AgentOS (macOS / Linux). Se corre una vez después de clonar el repo.
 # Opciones: --reset-login  --no-claude  --no-claude-cli  --no-desktop  --no-settings
-# Variables: AGENTOS_PORT (4780), AGENTOS_WEB_PORT (4781), AGENTOS_HOME (~/.agentos),
+# Variables: AGENTOS_PORT (4780), AGENTOS_WEB_PORT (4781), AGENTOS_HOME (<repo>/data), AGENTOS_ROOT (<repo>/workspaces),
 #            AGENTOS_USER / AGENTOS_PASSWORD (modo no interactivo)
 set -euo pipefail
 
@@ -9,7 +9,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MKT="agentos"
 PLUGINS=(agentos-core marketing-team sales-team)
 PORT="${AGENTOS_PORT:-4780}"
-export AGENTOS_HOME="${AGENTOS_HOME:-$HOME/.agentos}"
+# Todo vive dentro de esta carpeta: datos en <repo>/data y workspaces en <repo>/workspaces.
+# Si hay datos de una instalación anterior (~/.agentos, ~/AgentOS) y aún no existen los nuevos, el servidor
+# sigue usando los viejos hasta que los migres; aquí hacemos lo mismo para no apuntar a una carpeta vacía.
+LEGACY=0
+if [ -z "${AGENTOS_HOME:-}" ] && [ -d "$HOME/.agentos" ] && [ ! -d "$REPO/data" ]; then AGENTOS_HOME="$HOME/.agentos"; LEGACY=1; fi
+if [ -z "${AGENTOS_ROOT:-}" ] && [ -d "$HOME/AgentOS" ] && [ ! -d "$REPO/workspaces" ]; then AGENTOS_ROOT="$HOME/AgentOS"; LEGACY=1; fi
+export AGENTOS_HOME="${AGENTOS_HOME:-$REPO/data}"
+export AGENTOS_ROOT="${AGENTOS_ROOT:-$REPO/workspaces}"
 RESET_LOGIN=0; DO_CLI=1; DO_DESKTOP=1; DO_SETTINGS=1
 for a in "$@"; do
   case "$a" in
@@ -28,11 +35,15 @@ ok()   { printf '    OK  %s\n' "$*"; }
 warn() { printf '    !!  %s\n' "$*"; }
 die()  { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
+if [ -d "$HOME/.agentos" ] || [ -d "$HOME/AgentOS" ]; then
+  warn "Encontré datos de una instalación anterior en ~/.agentos / ~/AgentOS. Para pasarlos a esta carpeta corre: node scripts/migrate-to-project-folder.mjs (o pídele a Claude «migra AgentOS a la carpeta del proyecto»)."
+fi
+
 OS="$(uname -s)"
 case "$OS" in Darwin|Linux) ;; *) die "Este instalador es para macOS o Linux. En Windows usa WSL (ver INSTALL.md).";; esac
 
 # 1. Node
-step "1/8 Revisando Node.js"
+step "1/7 Revisando Node.js"
 if ! command -v node >/dev/null 2>&1; then
   die "No encontré Node.js. Instálalo (versión 24 LTS recomendada) desde https://nodejs.org o con: brew install node   (en Mac con Homebrew). Luego abre una terminal nueva y corre ./install.sh otra vez."
 fi
@@ -45,7 +56,7 @@ command -v npm >/dev/null 2>&1 || die "Node está instalado pero falta npm. Rein
 ok "Node $(node -v)"
 
 # 2. Claude CLI
-step "2/8 Revisando Claude Code"
+step "2/7 Revisando Claude Code"
 HAVE_CLAUDE=0
 if [ "$DO_CLI" = 1 ]; then
   if command -v claude >/dev/null 2>&1; then HAVE_CLAUDE=1; ok "claude encontrado"
@@ -58,7 +69,7 @@ if [ "$DO_CLI" = 1 ]; then
 else ok "Omitido (--no-claude)"; fi
 
 # 3. Web
-step "3/8 Instalando y compilando la oficina web (tarda unos minutos)"
+step "3/7 Instalando y compilando la oficina web (tarda unos minutos)"
 (
   cd "$REPO/web"
   if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
@@ -67,7 +78,7 @@ step "3/8 Instalando y compilando la oficina web (tarda unos minutos)"
 ok "Web compilada"
 
 # 4. Plugins
-step "4/8 Registrando los plugins en Claude Code"
+step "4/7 Registrando los plugins en Claude Code"
 if [ "$DO_CLI" = 1 ] && [ "$HAVE_CLAUDE" = 1 ]; then
   if claude plugin marketplace list 2>/dev/null | grep -q "$MKT"; then
     claude plugin marketplace update "$MKT" >/dev/null 2>&1 || true
@@ -83,18 +94,20 @@ if [ "$DO_CLI" = 1 ] && [ "$HAVE_CLAUDE" = 1 ]; then
 else ok "Omitido"; fi
 
 # 5. Claude Desktop
-step "5/8 Conectando Claude Desktop"
+step "5/7 Conectando Claude Desktop"
 if [ "$DO_DESKTOP" = 1 ] && [ "$OS" = Darwin ]; then
   CFG_DIR="$HOME/Library/Application Support/Claude"
   mkdir -p "$CFG_DIR"
   CFG="$CFG_DIR/claude_desktop_config.json"
   [ -f "$CFG" ] && cp "$CFG" "$CFG.agentos-backup" 
-  if CFG="$CFG" NODE_BIN="$NODE_BIN" MCP="$REPO/plugins/agentos-core/server/src/mcp.mjs" PORT="$PORT" node -e '
+  if CFG="$CFG" LEGACY="$LEGACY" NODE_BIN="$NODE_BIN" MCP="$REPO/plugins/agentos-core/server/src/mcp.mjs" PORT="$PORT" node -e '
     const fs=require("fs");const f=process.env.CFG;let c={};
     if(fs.existsSync(f)){const t=fs.readFileSync(f,"utf8").trim();if(t){try{c=JSON.parse(t)}catch(e){console.error("JSON inválido");process.exit(3)}}}
     c.mcpServers=c.mcpServers||{};
     const e={command:process.env.NODE_BIN,args:[process.env.MCP]};
-    if(process.env.PORT!=="4780")e.env={AGENTOS_PORT:process.env.PORT};
+    e.env=process.env.LEGACY==="1"?{}:{AGENTOS_HOME:process.env.AGENTOS_HOME,AGENTOS_ROOT:process.env.AGENTOS_ROOT};
+    if(process.env.PORT!=="4780")e.env.AGENTOS_PORT=process.env.PORT;
+    if(!Object.keys(e.env).length)delete e.env;
     c.mcpServers.agentos=e;
     fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");'; then
     ok "Claude Desktop configurado (respaldo: $CFG.agentos-backup). Reinicia Claude Desktop."
@@ -118,30 +131,40 @@ if [ "$DO_SETTINGS" = 1 ] && [ -z "$ALLOW" ]; then
     ALLOW=no; warn "Sin terminal interactiva: no cambio tus permisos de Claude (usa AGENTOS_ALLOW_MCP=yes para hacerlo)."
   fi
 fi
+print_env_json() {
+  warn "Para que los hooks y las herramientas de Claude encuentren tus datos, agrega esto a $HOME/.claude/settings.json:"
+  printf '        "env": {"AGENTOS_HOME": "%s", "AGENTOS_ROOT": "%s"}\n' "$AGENTOS_HOME" "$AGENTOS_ROOT"
+}
 if [ "$DO_SETTINGS" = 1 ] && [ "$ALLOW" != yes ]; then
   ok "No cambié tus permisos. Cuando Claude pida aprobar una herramienta de AgentOS, elige «Permitir siempre»."
+  print_env_json
   DO_SETTINGS=0
 fi
 if [ "$DO_SETTINGS" = 1 ]; then
   SET_DIR="$HOME/.claude"; SET="$SET_DIR/settings.json"
   mkdir -p "$SET_DIR"
-  if SET="$SET" node -e '
+  if SET="$SET" LEGACY="$LEGACY" node -e '
     const fs=require("fs");const f=process.env.SET;let c={};
     if(fs.existsSync(f)){const t=fs.readFileSync(f,"utf8").trim();if(t){try{c=JSON.parse(t)}catch(e){process.exit(3)}}}
     if(c===null||typeof c!=="object"||Array.isArray(c))process.exit(3);
     const rule="mcp__plugin_agentos-core_agentos";
     c.permissions=c.permissions&&typeof c.permissions==="object"?c.permissions:{};
     if(!Array.isArray(c.permissions.allow))c.permissions.allow=[];
-    if(c.permissions.allow.includes(rule)){console.log("    OK  La regla ya estaba en "+f);process.exit(0)}
+    const env=c.env&&typeof c.env==="object"&&!Array.isArray(c.env)?c.env:{};
+    const hasRule=c.permissions.allow.includes(rule);
+    const legacy=process.env.LEGACY==="1";
+    const hasEnv=legacy||(env.AGENTOS_HOME===process.env.AGENTOS_HOME&&env.AGENTOS_ROOT===process.env.AGENTOS_ROOT);
+    if(hasRule&&hasEnv){console.log("    OK  La regla y las rutas ya estaban en "+f);process.exit(0)}
     if(fs.existsSync(f))fs.copyFileSync(f,f+".agentos-backup");
-    c.permissions.allow.push(rule);
+    if(!hasRule)c.permissions.allow.push(rule);
+    if(!legacy){env.AGENTOS_HOME=process.env.AGENTOS_HOME;env.AGENTOS_ROOT=process.env.AGENTOS_ROOT;c.env=env}
     fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");
-    console.log("    OK  Agregué permissions.allow: "+rule+" en "+f+" (respaldo: "+f+".agentos-backup)");'; then :
-  else warn "No pude editar $SET (¿JSON dañado?). No se tocó. Sin este permiso Claude te pedirá aprobar las herramientas de AgentOS."; fi
+    console.log("    OK  Agregué permissions.allow: "+rule+" y env AGENTOS_HOME/AGENTOS_ROOT en "+f+" (respaldo: "+f+".agentos-backup)");'; then :
+  else warn "No pude editar $SET (¿JSON dañado?). No se tocó. Sin este permiso Claude te pedirá aprobar las herramientas de AgentOS."; print_env_json; fi
 elif [ "$ALLOW" != no ]; then ok "Omitido"; fi
 
 # 6. Login
-step "6/8 Usuario y contraseña de la oficina web"
+step "6/7 Usuario y contraseña de la oficina web"
 mkdir -p "$AGENTOS_HOME"
 ENVF="$AGENTOS_HOME/.env"
 if [ -f "$ENVF" ] && [ "$RESET_LOGIN" = 0 ]; then
@@ -166,32 +189,16 @@ else
 fi
 
 # 7. Carpeta de trabajo
-step "7/8 Creando ~/AgentOS"
-mkdir -p "${AGENTOS_ROOT:-$HOME/AgentOS}" "$AGENTOS_HOME/logs"
-ok "${AGENTOS_ROOT:-$HOME/AgentOS}"
+step "7/7 Creando la carpeta de workspaces"
+mkdir -p "$AGENTOS_ROOT" "$AGENTOS_HOME/logs"
+ok "$AGENTOS_ROOT"
 
-# 8. Comando agentos
-step "8/8 Instalando el comando 'agentos'"
 chmod +x "$REPO/bin/agentos"
-BIN_DIR=""
-for d in "$HOME/.local/bin" /usr/local/bin; do
-  mkdir -p "$d" 2>/dev/null || true
-  if [ -w "$d" ]; then BIN_DIR="$d"; break; fi
-done
-if [ -n "$BIN_DIR" ]; then
-  ln -sf "$REPO/bin/agentos" "$BIN_DIR/agentos"
-  ok "$BIN_DIR/agentos"
-  case ":$PATH:" in *":$BIN_DIR:"*) ;; *)
-    warn "$BIN_DIR no está en tu PATH. Agrega esta línea a ~/.zshrc y abre una terminal nueva:"
-    echo "        export PATH=\"$BIN_DIR:\$PATH\"" ;;
-  esac
-else
-  warn "No encontré dónde instalar el comando. Úsalo así: $REPO/bin/agentos start"
-fi
 
 cat <<MSG
 
 Listo. Siguiente paso:
-    agentos start
+    cd "$REPO" && ./bin/agentos start
+(el comando vive dentro de esta carpeta; no se instala nada en tu sistema)
 y entra con el usuario que acabas de crear (http://localhost:${AGENTOS_WEB_PORT:-4781}).
 MSG

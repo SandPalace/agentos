@@ -1,12 +1,21 @@
 ﻿<#
   Comando `agentos` para Windows: start | stop | status | update | whatsapp
-  Lo llama agentos.cmd (instalado por install.ps1 en %USERPROFILE%\.agentos\bin).
+  Lo llama bin\agentos.cmd, dentro de la carpeta de AgentOS (no se instala en el PATH).
 #>
 param([Parameter(Position = 0)][string]$Command = '', [Parameter(ValueFromRemainingArguments = $true)]$Rest)
 $ErrorActionPreference = 'Continue'
 
 $REPO = Split-Path -Parent $PSScriptRoot
-$AGENTOS_HOME = if ($env:AGENTOS_HOME) { $env:AGENTOS_HOME } else { Join-Path $env:USERPROFILE '.agentos' }
+# Datos en <repo>\data y workspaces en <repo>\workspaces (misma regla que el servidor: si solo existen las
+# carpetas de una instalacion anterior, %USERPROFILE%\.agentos / \AgentOS, se siguen usando hasta migrarlas).
+$legacyHome = Join-Path $env:USERPROFILE '.agentos'
+$legacyRoot = Join-Path $env:USERPROFILE 'AgentOS'
+$AGENTOS_HOME = if ($env:AGENTOS_HOME) { $env:AGENTOS_HOME }
+  elseif ((Test-Path $legacyHome) -and -not (Test-Path (Join-Path $REPO 'data'))) { $legacyHome }
+  else { Join-Path $REPO 'data' }
+$AGENTOS_ROOT = if ($env:AGENTOS_ROOT) { $env:AGENTOS_ROOT }
+  elseif ((Test-Path $legacyRoot) -and -not (Test-Path (Join-Path $REPO 'workspaces'))) { $legacyRoot }
+  else { Join-Path $REPO 'workspaces' }
 $PORT = if ($env:AGENTOS_PORT) { $env:AGENTOS_PORT } else { '4780' }
 $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
 $RUN = Join-Path $AGENTOS_HOME 'run'
@@ -15,6 +24,7 @@ $SERVER_JS = Join-Path $REPO 'plugins\agentos-core\server\src\server.mjs'
 $NEXT_BIN = Join-Path $REPO 'web\node_modules\next\dist\bin\next'
 $env:AGENTOS_PORT = $PORT
 $env:AGENTOS_HOME = $AGENTOS_HOME
+$env:AGENTOS_ROOT = $AGENTOS_ROOT
 
 function Say($m) { Write-Host $m }
 
@@ -45,7 +55,7 @@ function Invoke-Start {
   if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Say 'No encuentro Node.js. Abre una terminal nueva o reinstala Node.'; exit 1 }
   if (Test-Healthy) { Say "Servidor ya estaba corriendo (puerto $PORT)." }
   else {
-    if ((Get-PortPids $PORT).Count -gt 0) { Say "El puerto $PORT esta ocupado por otro programa. Cierralo o usa: `$env:AGENTOS_PORT='otro-puerto'; agentos start"; exit 1 }
+    if ((Get-PortPids $PORT).Count -gt 0) { Say "El puerto $PORT esta ocupado por otro programa. Cierralo o usa: `$env:AGENTOS_PORT='otro-puerto'; bin\agentos.cmd start"; exit 1 }
     Start-Hidden 'server' (Quote $SERVER_JS) $REPO
     for ($i = 0; $i -lt 40; $i++) { if (Test-Healthy) { break }; Start-Sleep -Milliseconds 250 }
     if (-not (Test-Healthy)) { Say "El servidor no arranco. Revisa $LOGS\server.err.log"; exit 1 }
@@ -53,7 +63,7 @@ function Invoke-Start {
   }
   if (Test-WebUp) { Say "Oficina web ya estaba corriendo (puerto $WEB_PORT)." }
   else {
-    if ((Get-PortPids $WEB_PORT).Count -gt 0) { Say "El puerto $WEB_PORT esta ocupado por otro programa. Usa: `$env:AGENTOS_WEB_PORT='otro-puerto'; agentos start"; exit 1 }
+    if ((Get-PortPids $WEB_PORT).Count -gt 0) { Say "El puerto $WEB_PORT esta ocupado por otro programa. Usa: `$env:AGENTOS_WEB_PORT='otro-puerto'; bin\agentos.cmd start"; exit 1 }
     $env:NEXT_TELEMETRY_DISABLED = '1'
     Start-Hidden 'web' ((Quote $NEXT_BIN) + " start -p $WEB_PORT -H 127.0.0.1") (Join-Path $REPO 'web')
     for ($i = 0; $i -lt 80; $i++) { if (Test-WebUp) { break }; Start-Sleep -Milliseconds 250 }
@@ -93,7 +103,7 @@ function Invoke-Status {
   $wp = Get-WaPort
   $wh = $null
   try { $wh = (Invoke-WebRequest -Uri "http://127.0.0.1:$wp/health" -UseBasicParsing -TimeoutSec 2).Content } catch { }
-  if (-not $wh) { Say 'WhatsApp:      detenido (opcional: agentos whatsapp)' }
+  if (-not $wh) { Say 'WhatsApp:      detenido (opcional: bin\agentos.cmd whatsapp)' }
   elseif ($wh -match '"connected"\s*:\s*true') { Say "WhatsApp:      conectado (puerto $wp)" }
   else { Say "WhatsApp:      corriendo, esperando que escanees el QR (puerto $wp)" }
   Say "Repo: $REPO"
@@ -172,7 +182,7 @@ function Invoke-WhatsApp($rest) {
   if (-not $url) { $url = 'http://127.0.0.1:8002' }
   $env:AGENTOS_WA_URL = $url
   $wp = Get-WaPort
-  if (-not (Test-Healthy)) { Say 'Aviso: el servidor AgentOS no esta corriendo. Abre otra terminal y corre: agentos start' }
+  if (-not (Test-Healthy)) { Say 'Aviso: el servidor AgentOS no esta corriendo. Abre otra terminal y corre: bin\agentos.cmd start' }
   if ((Get-PortPids $wp).Count -gt 0) { Say "El puerto $wp ya esta en uso (WhatsApp ya esta corriendo?)."; exit 1 }
   New-Item -ItemType Directory -Force -Path $waHome | Out-Null
   Say ''
@@ -230,5 +240,5 @@ switch ($Command) {
   'status' { Invoke-Status }
   'update' { Invoke-Update }
   'whatsapp' { Invoke-WhatsApp $Rest }
-  default  { Say 'Uso: agentos {start|stop|status|update|whatsapp [--reset]}'; exit 2 }
+  default  { Say 'Uso: bin\agentos.cmd {start|stop|status|update|whatsapp [--reset]}'; exit 2 }
 }

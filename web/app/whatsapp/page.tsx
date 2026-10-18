@@ -29,7 +29,7 @@ export default function WhatsAppPage() {
   }
   const state = !status ? '…' : !status.configured ? 'No configurado' : status.connected ? 'Conectado' : 'Desconectado'
   return (
-    <main className="mx-auto flex max-w-[1100px] flex-col gap-5 px-4 py-6 sm:px-6">
+    <main className="mx-auto flex max-w-[1500px] flex-col gap-5 px-4 py-6 sm:px-6">
       <Header conn={conn} />
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-xl font-bold tracking-tight">WhatsApp</h1>

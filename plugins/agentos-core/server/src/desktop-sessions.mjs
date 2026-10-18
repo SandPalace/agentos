@@ -1,5 +1,6 @@
-// Best-effort, read-only listing of the owner's Claude Desktop "Claude Code" sessions.
-// Undocumented layout: <desktop>/claude-code-sessions/<uuid>/<uuid>/local_<uuid>.json. Never throws.
+// Best-effort, read-only listing of the owner's Claude Desktop sessions: Code and Cowork.
+// Undocumented layout: <desktop>/claude-code-sessions/<uuid>/<uuid>/local_<uuid>.json (Code) and
+// <desktop>/local-agent-mode-sessions/<uuid>/<uuid>/local_<uuid>.json (Cowork). Never throws.
 import { readdirSync, readFileSync, statSync, realpathSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { homedir } from 'node:os'
@@ -31,10 +32,13 @@ export function isInside(cwd, root) {
   return pathInside(c, r)
 }
 
+// Carpeta de cada superficie de Desktop. En Cowork el `cwd` es la VM; la carpeta real es la que eligió la persona.
+const SURFACES = [['code', 'claude-code-sessions'], ['cowork', 'local-agent-mode-sessions']]
+
 export function listDesktopCodeSessions({ dir = desktopDir(), workspaceRoot = null } = {}) {
   const out = []
-  try {
-    const base = join(dir, 'claude-code-sessions')
+  for (const [surface, folder] of SURFACES) try {
+    const base = join(dir, folder)
     for (const a of dirs(base)) for (const b of dirs(join(base, a))) {
       let names = []
       try { names = readdirSync(join(base, a, b)) } catch { continue }
@@ -46,10 +50,10 @@ export function listDesktopCodeSessions({ dir = desktopDir(), workspaceRoot = nu
           const j = JSON.parse(readFileSync(f, 'utf8'))
           const id = str(j?.sessionId, 120)
           if (!/^local_[\w-]+$/.test(id)) continue
-          const cwd = str(j.cwd, 500) || str(j.originCwd, 500)
+          const cwd = surface === 'cowork' ? (Array.isArray(j.userSelectedFolders) ? str(j.userSelectedFolders[0], 500) : '') : str(j.cwd, 500) || str(j.originCwd, 500)
           const createdAt = ms(j.createdAt)
           const lastActivityAt = ms(j.lastActivityAt) ?? createdAt
-          const s = { id, cliId: str(j.cliSessionId, 120), title: str(j.title, 200), cwd, createdAt, lastActivityAt, archived: j.isArchived === true, model: str(j.model, 100) }
+          const s = { id, cliId: str(j.cliSessionId, 120), title: str(j.title, 200), cwd, createdAt, lastActivityAt, archived: j.isArchived === true, model: str(j.model, 100), surface }
           if (workspaceRoot) s.inProject = isInside(cwd, workspaceRoot)
           out.push(s)
         } catch { /* malformed file: skip */ }
@@ -63,6 +67,6 @@ export function listDesktopCodeSessions({ dir = desktopDir(), workspaceRoot = nu
 export function desktopCodeSessions(opts = {}) {
   const dir = opts.dir ?? desktopDir()
   let available = false
-  try { available = statSync(join(dir, 'claude-code-sessions')).isDirectory() } catch { /* none */ }
+  for (const [, folder] of SURFACES) try { available ||= statSync(join(dir, folder)).isDirectory() } catch { /* none */ }
   return { available, sessions: available ? listDesktopCodeSessions({ ...opts, dir }) : [] }
 }

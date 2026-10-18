@@ -9,6 +9,6 @@ const OfficeScene = dynamic(() => import('./OfficeScene'), {
   loading: () => <div className="flex h-full items-center justify-center text-sm text-muted">Armando la oficina…</div>,
 })
 
-export default function Office(props: { seats: Seat[]; teams: { name: string; size: number }[]; tasks: Task[]; selectedTask: string | null; onSelectTask: (id: string) => void; selectedSeat: string | null; onSelectSeat: (key: string | null) => void; onInteract: (id: string) => void; projectName?: string; codexKeys?: string[] }) {
+export default function Office(props: { seats: Seat[]; teams: { name: string; size: number }[]; tasks: Task[]; selectedTask: string | null; onSelectTask: (id: string) => void; selectedSeat: string | null; onSelectSeat: (key: string | null) => void; onInteract: (id: string) => void; projectName?: string; codexKeys?: string[]; coworkKeys?: string[] }) {
   return <OfficeScene {...props} />
 }

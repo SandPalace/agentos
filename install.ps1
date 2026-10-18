@@ -5,7 +5,7 @@
   Uso (recomendado, evita el bloqueo de scripts de Windows):
     powershell -ExecutionPolicy Bypass -File .\install.ps1
   Opciones: -ResetLogin  -NoClaude  -NoClaudeCli  -NoDesktop  -NoSettings
-  Variables: AGENTOS_PORT (4780), AGENTOS_WEB_PORT (4781), AGENTOS_HOME (%USERPROFILE%\.agentos),
+  Variables: AGENTOS_PORT (4780), AGENTOS_WEB_PORT (4781), AGENTOS_HOME (<repo>\data), AGENTOS_ROOT (<repo>\workspaces),
              AGENTOS_USER / AGENTOS_PASSWORD (modo no interactivo), AGENTOS_ALLOW_MCP=yes|no
 #>
 param(
@@ -23,9 +23,20 @@ $MKT = 'agentos'
 $PLUGINS = @('agentos-core', 'marketing-team', 'sales-team')
 $PORT = if ($env:AGENTOS_PORT) { $env:AGENTOS_PORT } else { '4780' }
 $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
-$AGENTOS_HOME = if ($env:AGENTOS_HOME) { $env:AGENTOS_HOME } else { Join-Path $env:USERPROFILE '.agentos' }
+# Todo vive dentro de esta carpeta: datos en <repo>\data y workspaces en <repo>\workspaces.
+# Si hay datos de una instalacion anterior y aun no existen los nuevos, el servidor sigue usando los viejos
+# hasta que los migres; aqui hacemos lo mismo para no apuntar a una carpeta vacia.
+$LEGACY = $false
+$legacyHome = Join-Path $env:USERPROFILE '.agentos'
+$legacyRoot = Join-Path $env:USERPROFILE 'AgentOS'
+if ($env:AGENTOS_HOME) { $AGENTOS_HOME = $env:AGENTOS_HOME }
+elseif ((Test-Path $legacyHome) -and -not (Test-Path (Join-Path $REPO 'data'))) { $AGENTOS_HOME = $legacyHome; $LEGACY = $true }
+else { $AGENTOS_HOME = Join-Path $REPO 'data' }
+if ($env:AGENTOS_ROOT) { $ROOT_DIR = $env:AGENTOS_ROOT }
+elseif ((Test-Path $legacyRoot) -and -not (Test-Path (Join-Path $REPO 'workspaces'))) { $ROOT_DIR = $legacyRoot; $LEGACY = $true }
+else { $ROOT_DIR = Join-Path $REPO 'workspaces' }
 $env:AGENTOS_HOME = $AGENTOS_HOME
-$ROOT_DIR = if ($env:AGENTOS_ROOT) { $env:AGENTOS_ROOT } else { Join-Path $env:USERPROFILE 'AgentOS' }
+$env:AGENTOS_ROOT = $ROOT_DIR
 
 $DO_CLI = $true; $DO_DESKTOP = $true; $DO_SETTINGS = $true
 if ($NoClaude) { $DO_CLI = $false; $DO_DESKTOP = $false; $DO_SETTINGS = $false }
@@ -48,10 +59,14 @@ function Invoke-NodeScript($nodeExe, $code) {
   try { & $nodeExe $tmp | Out-Host; return $LASTEXITCODE } finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
 }
 
+if ((Test-Path $legacyHome) -or (Test-Path $legacyRoot)) {
+  Warn 'Encontre datos de una instalacion anterior en %USERPROFILE%\.agentos / \AgentOS. Para pasarlos a esta carpeta corre: node scripts/migrate-to-project-folder.mjs (o pidele a Claude "migra AgentOS a la carpeta del proyecto").'
+}
+
 if ($env:OS -ne 'Windows_NT') { Die 'Este instalador es para Windows. En macOS o Linux usa ./install.sh' }
 
 # 1. Node, Git
-Step '1/8 Revisando Node.js y Git'
+Step '1/7 Revisando Node.js y Git'
 $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodeCmd) {
   Die ('No encontre Node.js. Instalalo (version 24 LTS recomendada) desde https://nodejs.org o con: winget install OpenJS.NodeJS.LTS' + "`n" + '       Luego abre una terminal NUEVA y corre este instalador otra vez.')
@@ -75,11 +90,11 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Die 'Node esta insta
 Ok "Node $nodeV ($NODE_BIN)"
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   Warn 'No encontre Git. Instalalo desde https://git-scm.com/download/win o con: winget install Git.Git'
-  Warn 'Sin Git el comando "agentos update" no va a funcionar (lo demas si).'
+  Warn 'Sin Git el comando ".\bin\agentos.cmd update" no va a funcionar (lo demas si).'
 } else { Ok 'Git encontrado' }
 
 # 2. Claude CLI
-Step '2/8 Revisando Claude Code'
+Step '2/7 Revisando Claude Code'
 $HAVE_CLAUDE = $false
 if ($DO_CLI) {
   if (Get-Command claude -ErrorAction SilentlyContinue) { $HAVE_CLAUDE = $true; Ok 'claude encontrado' }
@@ -93,7 +108,7 @@ if ($DO_CLI) {
 } else { Ok 'Omitido (-NoClaude / -NoClaudeCli)' }
 
 # 3. Web
-Step '3/8 Instalando y compilando la oficina web (tarda unos minutos)'
+Step '3/7 Instalando y compilando la oficina web (tarda unos minutos)'
 Push-Location (Join-Path $REPO 'web')
 try {
   if (Test-Path 'package-lock.json') { & npm ci --no-audit --no-fund } else { & npm install --no-audit --no-fund }
@@ -106,7 +121,7 @@ try {
 Ok 'Web compilada'
 
 # 4. Plugins
-Step '4/8 Registrando los plugins en Claude Code'
+Step '4/7 Registrando los plugins en Claude Code'
 if ($DO_CLI -and $HAVE_CLAUDE) {
   $list = (& claude plugin marketplace list 2>&1 | Out-String)
   if ($list -match [regex]::Escape($MKT)) {
@@ -129,7 +144,7 @@ if ($DO_CLI -and $HAVE_CLAUDE) {
 } else { Ok 'Omitido' }
 
 # 5. Claude Desktop
-Step '5/8 Conectando Claude Desktop'
+Step '5/7 Conectando Claude Desktop'
 if ($DO_DESKTOP) {
   $cfgDirs = @()
   $cfgDirs += (Join-Path $env:APPDATA 'Claude')
@@ -154,13 +169,16 @@ if (fs.existsSync(f)) {
 if (c === null || typeof c !== 'object' || Array.isArray(c)) process.exit(3);
 c.mcpServers = c.mcpServers || {};
 const e = { command: process.env.NODE_BIN, args: [process.env.MCP] };
-if (process.env.PORT !== '4780') e.env = { AGENTOS_PORT: process.env.PORT };
+e.env = process.env.LEGACY === '1' ? {} : { AGENTOS_HOME: process.env.AGENTOS_HOME, AGENTOS_ROOT: process.env.AGENTOS_ROOT };
+if (process.env.PORT !== '4780') e.env.AGENTOS_PORT = process.env.PORT;
+if (!Object.keys(e.env).length) delete e.env;
 c.mcpServers.agentos = e;
 fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n');
 '@
   $env:NODE_BIN = $NODE_BIN
   $env:MCP = Join-Path $REPO 'plugins\agentos-core\server\src\mcp.mjs'
   $env:PORT = $PORT
+  $env:LEGACY = if ($LEGACY) { '1' } else { '0' }
   foreach ($dir in $cfgDirs) {
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     $cfg = Join-Path $dir 'claude_desktop_config.json'
@@ -170,7 +188,7 @@ fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n');
     if ($rc -eq 0) { Ok "Claude Desktop configurado en $cfg (respaldo: $cfg.agentos-backup). Reinicia Claude Desktop." }
     else { Warn "No pude editar $cfg (JSON danado?). Tu archivo no se toco." }
   }
-  Remove-Item Env:\CFG, Env:\NODE_BIN, Env:\MCP, Env:\PORT -ErrorAction SilentlyContinue
+  Remove-Item Env:\CFG, Env:\NODE_BIN, Env:\MCP, Env:\PORT, Env:\LEGACY -ErrorAction SilentlyContinue
 } else { Ok 'Omitido' }
 
 # 5b. Permisos de Claude Code
@@ -188,8 +206,14 @@ if ($DO_SETTINGS -and -not $ALLOW) {
     Warn 'Sin terminal interactiva: no cambio tus permisos de Claude (usa $env:AGENTOS_ALLOW_MCP="yes" para hacerlo).'
   }
 }
+function Show-EnvJson {
+  Warn ('Para que los hooks y las herramientas de Claude encuentren tus datos, agrega esto a ' + (Join-Path $env:USERPROFILE '.claude\settings.json') + ':')
+  $hj = $AGENTOS_HOME.Replace('\', '\\'); $rj = $ROOT_DIR.Replace('\', '\\')
+  Write-Host ('        "env": {"AGENTOS_HOME": "' + $hj + '", "AGENTOS_ROOT": "' + $rj + '"}')
+}
 if ($DO_SETTINGS -and $ALLOW -ne 'yes') {
   Ok 'No cambie tus permisos. Cuando Claude pida aprobar una herramienta de AgentOS, elige "Permitir siempre".'
+  Show-EnvJson
   $DO_SETTINGS = $false
 }
 if ($DO_SETTINGS) {
@@ -208,20 +232,26 @@ if (c === null || typeof c !== 'object' || Array.isArray(c)) process.exit(3);
 const rule = 'mcp__plugin_agentos-core_agentos';
 c.permissions = c.permissions && typeof c.permissions === 'object' ? c.permissions : {};
 if (!Array.isArray(c.permissions.allow)) c.permissions.allow = [];
-if (c.permissions.allow.includes(rule)) { console.log('    OK  La regla ya estaba en ' + f); process.exit(0); }
+const env = c.env && typeof c.env === 'object' && !Array.isArray(c.env) ? c.env : {};
+const legacy = process.env.LEGACY === '1';
+const hasRule = c.permissions.allow.includes(rule);
+const hasEnv = legacy || (env.AGENTOS_HOME === process.env.AGENTOS_HOME && env.AGENTOS_ROOT === process.env.AGENTOS_ROOT);
+if (hasRule && hasEnv) { console.log('    OK  La regla y las rutas ya estaban en ' + f); process.exit(0); }
 if (fs.existsSync(f)) fs.copyFileSync(f, f + '.agentos-backup');
-c.permissions.allow.push(rule);
+if (!hasRule) c.permissions.allow.push(rule);
+if (!legacy) { env.AGENTOS_HOME = process.env.AGENTOS_HOME; env.AGENTOS_ROOT = process.env.AGENTOS_ROOT; c.env = env; }
 fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n');
-console.log('    OK  Agregue permissions.allow: ' + rule + ' en ' + f + ' (respaldo: ' + f + '.agentos-backup)');
+console.log('    OK  Agregue permissions.allow: ' + rule + ' y env AGENTOS_HOME/AGENTOS_ROOT en ' + f + ' (respaldo: ' + f + '.agentos-backup)');
 '@
   $env:SET = $set
+  $env:LEGACY = if ($LEGACY) { '1' } else { '0' }
   $rc = Invoke-NodeScript $NODE_BIN $allowJs
-  Remove-Item Env:\SET -ErrorAction SilentlyContinue
-  if ($rc -ne 0) { Warn "No pude editar $set (JSON danado?). No se toco. Sin este permiso Claude te pedira aprobar las herramientas de AgentOS." }
+  Remove-Item Env:\SET, Env:\LEGACY -ErrorAction SilentlyContinue
+  if ($rc -ne 0) { Warn "No pude editar $set (JSON danado?). No se toco. Sin este permiso Claude te pedira aprobar las herramientas de AgentOS."; Show-EnvJson }
 } elseif ($ALLOW -ne 'no') { Ok 'Omitido' }
 
 # 6. Login
-Step '6/8 Usuario y contrasena de la oficina web'
+Step '6/7 Usuario y contrasena de la oficina web'
 New-Item -ItemType Directory -Force -Path $AGENTOS_HOME | Out-Null
 $ENVF = Join-Path $AGENTOS_HOME '.env'
 if ((Test-Path $ENVF) -and -not $ResetLogin) {
@@ -257,36 +287,14 @@ if ((Test-Path $ENVF) -and -not $ResetLogin) {
 }
 
 # 7. Carpeta de trabajo
-Step '7/8 Creando la carpeta AgentOS'
+Step '7/7 Creando la carpeta de workspaces'
 New-Item -ItemType Directory -Force -Path $ROOT_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $AGENTOS_HOME 'logs') | Out-Null
 Ok $ROOT_DIR
 
-# 8. Comando agentos
-Step "8/8 Instalando el comando 'agentos'"
-$BIN_DIR = Join-Path $AGENTOS_HOME 'bin'
-New-Item -ItemType Directory -Force -Path $BIN_DIR | Out-Null
-# El .cmd es un atajo que llama a bin\agentos.ps1 dentro del repo (asi 'agentos update' tambien actualiza el launcher).
-# No se instala un agentos.ps1 en el PATH: PowerShell lo preferiria al .cmd y la politica de ejecucion lo bloquearia.
-$launcher = Join-Path $REPO 'bin\agentos.ps1'
-$cmdText = "@echo off`r`n" + 'powershell -NoProfile -ExecutionPolicy Bypass -File "' + $launcher + '" %*' + "`r`n"
-[System.IO.File]::WriteAllText((Join-Path $BIN_DIR 'agentos.cmd'), $cmdText, (New-Object System.Text.UTF8Encoding($false)))
-Remove-Item (Join-Path $BIN_DIR 'agentos.ps1') -Force -ErrorAction SilentlyContinue
-Ok (Join-Path $BIN_DIR 'agentos.cmd')
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$parts = @()
-if ($userPath) { $parts = $userPath.Split(';') | Where-Object { $_ -ne '' } }
-$already = $false
-foreach ($x in $parts) { if ($x.TrimEnd('\') -ieq $BIN_DIR.TrimEnd('\')) { $already = $true } }
-if (-not $already) {
-  $new = (@($parts) + $BIN_DIR) -join ';'
-  [Environment]::SetEnvironmentVariable('Path', $new, 'User')
-  Ok 'Agregado al PATH de tu usuario. Abre una terminal NUEVA para usar "agentos".'
-}
-if (($env:Path.Split(';') | Where-Object { $_.TrimEnd('\') -ieq $BIN_DIR.TrimEnd('\') }).Count -eq 0) { $env:Path = "$BIN_DIR;$env:Path" }
-
 Write-Host ''
-Write-Host 'Listo. Siguiente paso (en una terminal NUEVA, o en esta misma):'
-Write-Host '    agentos start'
+Write-Host 'Listo. Siguiente paso, desde la carpeta de AgentOS:'
+Write-Host '    .\bin\agentos.cmd start'
+Write-Host '(el comando vive dentro de esta carpeta; no se instala nada en tu sistema)'
 Write-Host "y entra con el usuario que acabas de crear (http://localhost:$WEB_PORT)."
 Write-Host 'Si Windows pregunta por el Firewall para "node", elige "Permitir" (solo redes privadas).'

@@ -3,8 +3,7 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { openSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { isMain } from './paths.mjs'
+import { isMain, agentosHome } from './paths.mjs'
 
 const PORT = Number(process.env.AGENTOS_PORT || 4780)
 const BASE = `http://127.0.0.1:${PORT}`
@@ -22,7 +21,7 @@ async function healthy(ms = 400) {
 
 export async function ensureServer({ waitMs = 3000 } = {}) {
   if (await healthy()) return true
-  const dir = process.env.AGENTOS_HOME || join(homedir(), '.agentos')
+  const dir = agentosHome()
   mkdirSync(dir, { recursive: true })
   const log = openSync(join(dir, 'server.log'), 'a')
   const child = spawn(process.execPath, [fileURLToPath(new URL('./server.mjs', import.meta.url))], {

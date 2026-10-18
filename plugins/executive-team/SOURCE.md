@@ -17,4 +17,4 @@
 - Workspace folder: `executive/` (virtual files; formerly `~/AgentOS/executive/`, a legacy prefix the server still maps).
 
 ## Change of 13 Oct 2026
-- The COO moved to `agentos-core` (`plugins/agentos-core/agents/coo.md`): it is now the default AgentOS agent, a bridge and guide between all teams. Its operations and commitments work is kept within that role. This team is left with CEO and CFO.
+- The COO moved to `agentos-core` (`plugins/agentos-core/agents/coo.md`): it is now the default AgentOS agent, a bridge and guide between all teams. Its operations and commitments work is kept within that role. This team has CEO, CFO and `operations-chief` (the business COO, new and not adapted from mission-control; its id differs because `coo` belongs to the Assistant).

@@ -15,18 +15,23 @@ function fixture() {
   put('local_3.json', { sessionId: 'local_3', title: 'Media', cwd: '/x', createdAt: 1500, lastActivityAt: 5000, isArchived: false })
   put('local_4.json', '{ not json')
   put('local_5.json', { title: 'sin id', cwd: '/x' })
+  const cw = join(dir, 'local-agent-mode-sessions', 'aaa', 'bbb'); mkdirSync(cw, { recursive: true })
+  writeFileSync(join(cw, 'local_6.json'), JSON.stringify({ sessionId: 'local_6', title: 'Cowork', cwd: '/vm/sessions/x', userSelectedFolders: [join(root, 'docs')], createdAt: 1000, lastActivityAt: 7000, isArchived: false }))
   return { dir, root }
 }
 
 test('desktop sessions: orden, saltos e inProject', () => {
   const { dir, root } = fixture()
   const list = listDesktopCodeSessions({ dir, workspaceRoot: root })
-  assert.deepEqual(list.map((s) => s.id), ['local_2', 'local_3', 'local_1'])
+  assert.deepEqual(list.map((s) => s.id), ['local_2', 'local_6', 'local_3', 'local_1'])
   assert.equal(list[0].inProject, true)
-  assert.equal(list[1].inProject, false)
-  assert.equal(list[2].archived, true)
-  assert.equal(list[2].title, 'Vieja')
+  assert.equal(list[2].inProject, false)
+  assert.equal(list[3].archived, true)
+  assert.equal(list[3].title, 'Vieja')
   assert.equal(list[0].cliId, 'c2')
+  assert.deepEqual(list.map((s) => s.surface), ['code', 'cowork', 'code', 'code'])
+  assert.equal(list[1].cwd, join(root, 'docs'), 'Cowork: la carpeta elegida, no la de la VM')
+  assert.equal(list[1].inProject, true)
 })
 
 test('desktop sessions: sin carpeta no falla', () => {

@@ -27,7 +27,12 @@ export function newConversationLink({ surface, role, name, female, folder }: { s
   return `claude://${surface}/new?q=${q}${f}`
 }
 
-export type SessionLink = { url: string; kind: 'code' | 'chat' | 'project' | 'codex' }
+export type SessionLink = { url: string; kind: 'code' | 'cowork' | 'chat' | 'project' | 'codex' }
+
+// Claude Desktop (2.42304, revisado en su código): una sesión LOCAL de Code se abre con claude://code/continue?session=local_…
+// (claude://code/local_… no la reconoce). Para tareas de Cowork no existe enlace por id: solo se trae Claude al frente
+// (claude://hotkey) y la persona la elige en su barra lateral. Una tarea de Cowork se guarda como «cowork:local_…».
+const LOCAL_ID = /^local_[A-Za-z0-9-]{1,64}$/
 
 // Conversación EXISTENTE de Claude a partir de lo que la persona pega: id de sesión de Code (cse_…, session_…,
 // uuid), enlace https://claude.ai/{code,chat,project}/<id> o su forma claude://. Solo devuelve URLs claude://
@@ -42,6 +47,9 @@ export function sessionLink(ref: string | null | undefined): SessionLink | null 
   // Codex (app de escritorio de OpenAI): codex://threads/<uuid> o la forma corta codex:<uuid>.
   const cx = r.match(/^codex:(?:\/\/threads\/)?([0-9a-f-]{36})$/i)
   if (cx) return { url: `codex://threads/${cx[1].toLowerCase()}`, kind: 'codex' }
+  const cw = r.match(/^cowork:(local_[A-Za-z0-9-]{1,64})$/)
+  if (cw) return { url: 'claude://hotkey', kind: 'cowork' }
+  if (LOCAL_ID.test(r)) return { url: `claude://code/continue?session=${r}`, kind: 'code' }
   let m = r.match(SESSION_ID) ? [r, r] : null
   if (m) return { url: `claude://code/${m[1]}`, kind: 'code' }
   m = r.match(new RegExp(`^(?:https://claude\\.ai/code|claude://code)/${ID}${tail}`))

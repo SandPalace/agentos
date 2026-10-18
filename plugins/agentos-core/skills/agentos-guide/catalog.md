@@ -21,7 +21,7 @@ Start a team's work with its lead; the lead delegates inside its team.
 | marketing-team | `cmo` | Full marketing cycle for the client's business. |
 | sales-team | `sales-lead` | Sets up your offer + scoring rubric (`ventas/`), prepares replies to pasted messages or to your WhatsApp inbox (drafts only, the person sends), finds businesses on Google Maps (CSV + optional Leads), scores prospects, Leads Kanban, follow-up drafts, proposals. |
 | collections-team | `collections-lead` | Portfolio, reconciliation, collection drafts. |
-| executive-team | `ceo` (priorities, cross-area conflicts) / `cfo` (money) | Decisions the owner signs. |
+| executive-team | `ceo` (priorities, cross-area conflicts) / `cfo` (money) / `operations-chief` (the COO of the person's business: processes, cadence, bottlenecks; not the Assistant `coo`) | Decisions the owner signs. |
 | dev-team | `tech-lead` | Websites, stores and apps; splits work among its engineers. |
 
 New plugins appear in the roster without editing this file; if one has a lead, read its description to find it.

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-16T01:27:46.335Z",
+  "generated_at": "2026-10-18T22:30:06.888Z",
   "plugins": [
     {
       "id": "agentos-core",
@@ -230,7 +230,7 @@
     },
     {
       "id": "executive-team",
-      "description": "Executive team for a Mexican SMB: CEO and finance. Prepares dashboards, decision memos, weekly reviews, quarterly plans and cash flow forecasts.",
+      "description": "Executive team for a Mexican SMB: CEO, CFO and COO (operations). Prepares dashboards, decision memos, weekly reviews, quarterly plans and cash flow forecasts.",
       "agents": [
         {
           "id": "ceo",
@@ -240,6 +240,11 @@
         {
           "id": "cfo",
           "description": "Chief financial officer. Use it for cash flow, budgeting, profitability by service or client, evaluating whether an expense or investment makes sense, and basic IVA and ISR guidance (always to be validated with the accountant).",
+          "model": "opus"
+        },
+        {
+          "id": "operations-chief",
+          "description": "Chief operating officer (COO) of the person's business. Use it to run day-to-day operations - processes and SOPs, the weekly operating cadence, bottlenecks between sales, marketing, collections and dev, capacity, delivery KPIs and supplier follow-up drafts. Not the AgentOS Assistant (id `coo`, the…",
           "model": "opus"
         }
       ],

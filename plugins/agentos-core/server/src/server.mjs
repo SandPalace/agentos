@@ -1,9 +1,9 @@
 import { createServer } from 'node:http'
 import { openDb } from './db.mjs'
 import { execFile } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync, realpathSync, statSync, createReadStream } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, statSync, createReadStream } from 'node:fs'
 import { join, resolve, sep, basename } from 'node:path'
-import { homedir, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { codexSessions } from './codex-sessions.mjs'
@@ -13,9 +13,10 @@ import { createUploader, contentTypeOf, walkFolder } from './outputs-storage.mjs
 import { createBlobs, BlobError, assertBlobKey as assertKey } from './blobstore.mjs'
 import { createFiles, FILES, DEFAULT_LIMITS } from './files.mjs'
 import { createTransfer } from './transfer.mjs'
-import { pathInside, isMain } from './paths.mjs'
+import { pathInside, isMain, agentosHome, defaultWorkspaceRoot } from './paths.mjs'
 import { zipStream } from './zip.mjs'
 import { desktopCodeSessions } from './desktop-sessions.mjs'
+import { createAgentDefs } from './agent-defs.mjs'
 import { createWhatsApp } from './whatsapp.mjs'
 import { createAuth, loadCredentials, looseFiles, parseCookie, cookieHeader, clearCookieHeader } from './auth.mjs'
 
@@ -25,10 +26,11 @@ const LOCAL_HOSTS = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/
 // `extraRoots`: carpetas adicionales desde las que se puede servir un archivo local (además de las raíces de los workspaces).
 // `blobs`: blob store local (blobstore.mjs). Por defecto vive en `blobsRoot` (o una carpeta temporal: createApp nunca toca ~/.agentos por su cuenta).
 // `limits`: topes de archivos (ver DEFAULT_LIMITS en files.mjs).
-export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [], blobs = null, blobsRoot = null, limits = {}, roster = null, auth: authOpt = false, whatsapp: waOpt = {} } = {}) {
+export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [], blobs = null, blobsRoot = null, limits = {}, roster = null, auth: authOpt = false, whatsapp: waOpt = {}, agentDefs: defsOpt = {} } = {}) {
   // `auth`: false (off), true (credentials from env/.env/config.json) or { credentials: () => ({ user, password }) | null } (tests).
   const store = createStore(db, { roster })
   const wa = createWhatsApp({ db, store, ...waOpt })
+  const defs = createAgentDefs(defsOpt)
   const auth = createAuth(db, { enabled: !!authOpt, ...(typeof authOpt === 'object' ? authOpt : {}) })
   blobs ??= createBlobs({
     root: blobsRoot ?? mkdtempSync(join(tmpdir(), 'agentos-store-')),
@@ -269,7 +271,8 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
       const r = desktopCodeSessions({ workspaceRoot: url.searchParams.get('workspace') ? store.getWorkspace(ws)?.root ?? null : null })
       // A quién ya está ligada cada sesión (en cualquier proyecto), para que la web no ofrezca dos veces la misma.
       const links = store.sessionLinks()
-      for (const s of r.sessions) if (links[s.id]) s.linkedTo = links[s.id]
+      // Las tareas de Cowork se guardan como «cowork:local_…» (Desktop no las abre por id; ver web/lib/claude.ts).
+      for (const s of r.sessions) { const l = links[s.id] ?? links[`cowork:${s.id}`]; if (l) s.linkedTo = l }
       return send(res, 200, r)
     }
     if (m === 'GET' && path === '/api/codex/sessions') {
@@ -277,6 +280,16 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
       const links = store.sessionLinks()
       for (const s of r.sessions) { const l = links[`codex://threads/${s.id}`] ?? links[`codex:${s.id}`]; if (l) s.linkedTo = l }
       return send(res, 200, r)
+    }
+    // ── definiciones de agentes (.md de Claude): global = ~/.claude/agents, project = <raíz>/.claude/agents ──
+    if (path === '/api/agent-defs' || path.startsWith('/api/agent-defs/') || path.startsWith('/api/human/agent-defs/')) {
+      const scope = url.searchParams.get('scope') || 'project'
+      const root = scope === 'project' ? store.getWorkspace(ws)?.root ?? null : null
+      if (m === 'GET' && path === '/api/agent-defs') return send(res, 200, defs.list({ scope, root }))
+      const id = decodeURIComponent(path.split('/').pop())
+      if (m === 'GET' && path.startsWith('/api/agent-defs/')) return send(res, 200, defs.get(id, { scope, root }))
+      if (m === 'PUT' && path.startsWith('/api/human/agent-defs/')) return send(res, 200, defs.put(id, { scope, root, content: (await readJson(req, 200_000)).content }))
+      if (m === 'DELETE' && path.startsWith('/api/human/agent-defs/')) return send(res, 200, defs.remove(id, { scope, root }))
     }
     if (m === 'POST' && path === '/api/workspaces') {
       const w = store.createWorkspace(await readJson(req))
@@ -573,22 +586,6 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
       execFile(cmd, [target], () => {})
       return send(res, 200, { ok: true })
     }
-    // Datos de ejemplo para enseñar la oficina sin una sesión de Claude.
-    if (m === 'POST' && path === '/api/human/demo-seed') {
-      const dir = join(homedir(), '.agentos', 'demo')
-      mkdirSync(dir, { recursive: true })
-      const file = join(dir, 'reporte-leads-demo.md')
-      writeFileSync(file, '# Reporte de leads (demo)\n\nEste archivo lo generó el botón de demostración de AgentOS.\n')
-      store.checkin({ agent: 'cmo', status: 'working', detail: 'Coordinando el periodo' }, ws)
-      store.checkin({ agent: 'researcher', status: 'working', detail: 'WebSearch: precios de renta en San Nicolás' }, ws)
-      store.checkin({ agent: 'creative', status: 'waiting', detail: 'Necesita tu firma en el copy' }, ws)
-      store.checkin({ agent: 'analyst', status: 'idle', detail: 'Listo' }, ws)
-      const t = store.createTask({ title: 'Reporte de leads de la semana (demo)', agent: 'analyst' }, ws)
-      const added = store.addOutput(t.id, { path: file, kind: 'report', title: 'Reporte de leads' })
-      await uploader.uploadOutput(added.new_output_id).catch(() => {})
-      return send(res, 201, store.updateTask(t.id, { status: 'review', output_dir: dir }))
-    }
-
     return send(res, 404, { error: 'not_found' })
   }
 
@@ -623,14 +620,16 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
 }
 
 if (isMain(import.meta.url)) {
-  const app = createApp({ auth: process.env.AGENTOS_AUTH !== 'off', blobsRoot: join(process.env.AGENTOS_HOME || join(homedir(), '.agentos'), 'store') })
+  const app = createApp({ auth: process.env.AGENTOS_AUTH !== 'off', blobsRoot: join(agentosHome(), 'store') })
   const p = await app.listen()
   console.log(`AgentOS escuchando en http://127.0.0.1:${p}`)
+  // La carpeta del proyecto por defecto (workspaces/default) debe existir: ahí se abren las sesiones de Claude del proyecto.
+  try { mkdirSync(defaultWorkspaceRoot(), { recursive: true }) } catch (e) { console.log(`No pude crear ${defaultWorkspaceRoot()}: ${e.message}`) }
   // En segundo plano: el servidor ya atiende.
   app.startBackground((m) => console.log(m))
   if (process.env.AGENTOS_AUTH !== 'off') {
     const creds = loadCredentials()
-    if (!creds) console.log('Auth: sin usuario ni contraseña. Crea ~/.agentos/.env con AGENTOS_USER y AGENTOS_PASSWORD (ver docs/AUTH.md); mientras tanto la web no deja entrar.')
+    if (!creds) console.log('Auth: sin usuario ni contraseña. Crea data/.env (en la carpeta de AgentOS) con AGENTOS_USER y AGENTOS_PASSWORD (ver docs/AUTH.md); mientras tanto la web no deja entrar.')
     for (const f of looseFiles(creds)) console.log(`Auth: ${f} lo pueden leer otros usuarios de esta computadora. Corre: chmod 600 ${f}`)
   }
 }

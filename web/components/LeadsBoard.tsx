@@ -22,6 +22,8 @@ const sourceLabel = (s: LeadSource) => SOURCES.find((x) => x.id === s)?.label ??
 const stageTitle = (s: LeadStage) => COLUMNS.find((c) => c.stage === s)?.title ?? s
 const money = (n: number) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+// Fecha corta para tarjetas: «20 oct» (el año solo si no es el actual).
+const shortDate = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', ...(y !== new Date().getFullYear() ? { year: 'numeric' } : {}) }) }
 const fmtDate = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) }
 const isOpen = (l: Lead) => l.stage !== 'won' && l.stage !== 'lost'
 
@@ -149,7 +151,7 @@ function Card({ l, busy, dragLocked, dragging, onOpen, onMove, onDelete, onDragS
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <button type="button" onClick={() => onOpen(l)} className="block max-w-full truncate text-left text-sm font-semibold leading-snug hover:text-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue">{l.name}</button>
+          <button type="button" onClick={() => onOpen(l)} className="line-clamp-2 block max-w-full break-words text-left text-sm font-semibold leading-snug hover:text-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue">{l.name}</button>
           {l.company && <div className="truncate text-xs text-muted">{l.company}</div>}
         </div>
         <LeadMenu l={l} busy={busy} onOpenChange={setMenuOpen} onMove={(s) => onMove(l, s)} onDelete={() => onDelete(l)} />
@@ -158,11 +160,13 @@ function Card({ l, busy, dragLocked, dragging, onOpen, onMove, onDelete, onDragS
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold text-muted">{sourceLabel(l.source)}</span>
         {sc && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.cls}`}>{sc.label} · {l.score}</span>}
-        {l.value != null && <span className="ml-auto text-xs font-semibold">{money(l.value)}</span>}
       </div>
-      {l.next_contact_at && (
-        <div className={`mt-2 text-xs ${overdue ? 'font-semibold text-red' : 'text-muted'}`}>
-          Próximo contacto: {fmtDate(l.next_contact_at)}{overdue ? ' · vencido' : ''}
+      {(l.next_contact_at || l.value != null) && (
+        <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-line pt-2 text-xs">
+          {l.next_contact_at
+            ? <span className={`whitespace-nowrap ${overdue ? 'font-semibold text-red' : 'text-muted'}`} title={`Próximo contacto: ${fmtDate(l.next_contact_at)}${overdue ? ' (vencido)' : ''}`}>{overdue ? '⚠ ' : '→ '}{shortDate(l.next_contact_at)}</span>
+            : <span />}
+          {l.value != null && <span className="whitespace-nowrap font-semibold">{money(l.value)}</span>}
         </div>
       )}
     </li>

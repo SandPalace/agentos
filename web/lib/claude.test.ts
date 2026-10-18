@@ -9,7 +9,11 @@ test('id suelto de sesión de Code', () => {
   assert.deepEqual(sessionLink(ID), { url: `claude://code/${ID}`, kind: 'code' })
   assert.deepEqual(sessionLink(`  session_01AbC  `), { url: 'claude://code/session_01AbC', kind: 'code' })
   assert.deepEqual(sessionLink(UUID), { url: `claude://code/${UUID}`, kind: 'code' })
-  assert.deepEqual(sessionLink('local_e238acf3-4494-4a25-a49f-f171012aee6e'), { url: 'claude://code/local_e238acf3-4494-4a25-a49f-f171012aee6e', kind: 'code' })
+  // Sesión local de Desktop: claude://code/<local_…> no la abre; la ruta que sí la abre es /continue?session=.
+  assert.deepEqual(sessionLink('local_e238acf3-4494-4a25-a49f-f171012aee6e'), { url: 'claude://code/continue?session=local_e238acf3-4494-4a25-a49f-f171012aee6e', kind: 'code' })
+  // Cowork no tiene enlace por id: solo trae Claude al frente.
+  assert.deepEqual(sessionLink('cowork:local_c231e2f4-03ae-4b2f-9cde-1e24caa30dbd'), { url: 'claude://hotkey', kind: 'cowork' })
+  assert.equal(sessionLink('cowork:session_01AbC'), null)
 })
 
 test('enlaces de Code (https y claude://)', () => {

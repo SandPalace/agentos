@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 *.log
 test-results/
 .DS_Store
+# Datos locales de AgentOS: nunca se suben.
+/data/
+/workspaces/

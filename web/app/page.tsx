@@ -8,7 +8,7 @@ import Header from '@/components/Header'
 import { buildTeamSeats, type Seat } from '@/lib/team'
 import { COO_AGENT, findAgent } from '@/lib/roster'
 import { AVATAR_PALETTES } from '@/components/office/officeLayout'
-import { post, useAgentOS } from '@/lib/useAgentOS'
+import { getJson, post, useAgentOS } from '@/lib/useAgentOS'
 import { newConversationLink, resumeCommand, sessionLink } from '@/lib/claude'
 import { STATUS_LABEL } from '@/lib/team'
 
@@ -37,7 +37,6 @@ export default function Page() {
     return s.status === 'offline' && sessionLink(m?.session_ref) ? { ...s, status: 'idle' as const } : s
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [rawSeats, coo, teams])
-  const [busy, setBusy] = useState(false)
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -69,13 +68,28 @@ export default function Page() {
   }
   const refOf = (s: Seat) => (s.key === 'coo' ? coo : memberOf(s.key))?.session_ref
   const isCodex = (s: Seat) => sessionLink(refOf(s))?.kind === 'codex'
+  const isCowork = (s: Seat) => sessionLink(refOf(s))?.kind === 'cowork'
   const codexKeys = seats.filter(isCodex).map((s) => s.key)
+  const coworkKeys = seats.filter(isCowork).map((s) => s.key)
+  // Título y carpeta de las tareas de Cowork ligadas: Desktop no las abre por enlace, así que se dice cuál buscar.
+  const [coworkInfo, setCoworkInfo] = useState<Record<string, { title: string; cwd: string }>>({})
+  const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => {
+    if (!coworkKeys.length) return
+    getJson('/api/desktop/code-sessions').then((d: { sessions: { id: string; title: string; cwd: string; surface?: string }[] }) =>
+      setCoworkInfo(Object.fromEntries(d.sessions.filter((x) => x.surface === 'cowork').map((x) => [`cowork:${x.id}`, { title: x.title, cwd: x.cwd }])))).catch(() => {})
+  }, [coworkKeys.join()])
   const hasSession = (s: Seat) => !!sessionLink((s.key === 'coo' ? coo : memberOf(s.key))?.session_ref)
   // E junto a un personaje (o clic en él): abre la conversación en Claude Desktop y deja el aviso con el comando de respaldo.
   const talkTo = (key: string) => {
     const s = seats.find((x) => x.key === key)
     if (!s) return
     setSelectedSeat(key)
+    if (isCowork(s)) {
+      const info = coworkInfo[refOf(s) ?? '']
+      setNotice(`${s.member.name} trabaja en una tarea de Cowork${info ? ` «${info.title || 'Sin título'}»${info.cwd ? ` (${info.cwd.split(/[\\/]/).filter(Boolean).pop()})` : ''}` : ''}. Claude Desktop no permite abrir tareas de Cowork por enlace: te traigo Claude al frente; ábrela en la barra lateral de Cowork.`)
+      setTimeout(() => setNotice(null), 12000)
+    }
     window.location.href = openLink(s)
   }
   const onInteract = (id: string) => {
@@ -111,7 +125,7 @@ export default function Page() {
 
       <section className="card overflow-hidden">
           <div className="relative h-[calc(100vh-205px)] min-h-[440px]">
-            <Office projectName={workspace?.name ?? workspaceId} seats={seats} teams={teamNames.map((name, i) => ({ name, size: teamSizes[i] }))} tasks={tasks} selectedTask={selectedTask} onSelectTask={openTask} selectedSeat={selectedSeat} onSelectSeat={setSelectedSeat} onInteract={onInteract} codexKeys={codexKeys} />
+            <Office projectName={workspace?.name ?? workspaceId} seats={seats} teams={teamNames.map((name, i) => ({ name, size: teamSizes[i] }))} tasks={tasks} selectedTask={selectedTask} onSelectTask={openTask} selectedSeat={selectedSeat} onSelectSeat={setSelectedSeat} onInteract={onInteract} codexKeys={codexKeys} coworkKeys={coworkKeys} />
             {boardOpen && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/20 p-3" style={{ zIndex: 2147483100 }}>
                 <div role="dialog" aria-label="Tablero de tareas" className="pointer-events-auto flex max-h-full w-[min(1280px,100%)] flex-col overflow-hidden rounded-sm border-2 border-[#7A4E2D] bg-[#D9A86C] shadow-none">
@@ -140,14 +154,14 @@ export default function Page() {
               </div>
             </div>
             <div className="absolute bottom-3 left-3 flex max-h-[calc(100%-4.5rem)] w-[min(260px,46%)]" style={{ zIndex: 2147483000 }}>
-              <TeamHud seats={seats} selectedKey={selectedSeat} onOpen={talkTo} linked={hasSession} codexKeys={codexKeys} />
+              <TeamHud seats={seats} selectedKey={selectedSeat} onOpen={talkTo} linked={hasSession} codexKeys={codexKeys} coworkKeys={coworkKeys} />
             </div>
             {seat && (
               <div className="absolute bottom-3 right-3 flex justify-end" style={{ zIndex: 2147483000 }}>
                 <div className="flex max-w-full flex-wrap items-center gap-3 rounded-full border border-line bg-ink px-4 py-2 text-xs text-bg">
                   <span className="font-semibold">{seat.member.name}</span>
                   <span className="text-bg/60">{STATUS_LABEL[seat.status]}</span>
-                  <a href={openLink(seat)} className="rounded-full bg-blue px-3 py-1 font-semibold text-white hover:opacity-90">{hasSession(seat) ? (isCodex(seat) ? 'Abrir su conversación en Codex' : 'Abrir su conversación') : seat.key === 'coo' ? 'Nueva sesión de Code' : 'Nueva conversación en Cowork'}</a>
+                  <a href={openLink(seat)} className="rounded-full bg-blue px-3 py-1 font-semibold text-white hover:opacity-90">{hasSession(seat) ? (isCodex(seat) ? 'Abrir su conversación en Codex' : isCowork(seat) ? 'Ir a su tarea en Cowork' : 'Abrir su conversación') : seat.key === 'coo' ? 'Nueva sesión de Code' : 'Nueva conversación en Cowork'}</a>
                   {resume && (
                     <button
                       className="rounded-full bg-bg/15 px-3 py-1 font-semibold hover:bg-bg/25"
@@ -170,22 +184,6 @@ export default function Page() {
             <Link href="/archivos" className="rounded-full border border-line px-3 py-1 font-semibold text-ink hover:bg-bg" title="Sube archivos para que tus agentes los lean, sin dar rutas">
               Subir archivos
             </Link>
-            <button
-              disabled={busy || conn !== 'live'}
-              className="rounded-full border border-line px-3 py-1 font-semibold text-ink hover:bg-bg disabled:opacity-40"
-              onClick={async () => {
-                setBusy(true)
-                try {
-                  await post('/api/human/demo-seed')
-                  // unos segundos después el CMO termina: así se ve el salto de "¡Listo!"
-                  setTimeout(() => post('/api/checkin', { agent: 'cmo', status: 'idle', detail: 'Listo' }).catch(() => {}), 5000)
-                } finally {
-                  setBusy(false)
-                }
-              }}
-            >
-              Simular actividad
-            </button>
             </div>
           </div>
       </section>

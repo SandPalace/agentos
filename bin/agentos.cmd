@@ -1,3 +1,3 @@
 @echo off
-rem Atajo para correr el launcher desde el repo sin instalar (install.ps1 genera su propia copia en %USERPROFILE%\.agentos\bin).
+rem Launcher de AgentOS: corre .\bin\agentos.cmd start desde la carpeta de AgentOS (no se instala en el PATH).
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0agentos.ps1" %*

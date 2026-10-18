@@ -16,7 +16,7 @@
 // Sessions: 32 random bytes in an HttpOnly cookie; only their SHA-256 is stored, together with a fingerprint of the credentials.
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { agentosHome } from './paths.mjs'
 import { join } from 'node:path'
 import { AppError } from './store.mjs'
 
@@ -61,7 +61,7 @@ export function parseEnv(text) {
 const readOptional = (file) => { try { return readFileSync(file, 'utf8') } catch { return null } }
 
 /** The configured credentials, or null when the owner has not set them. `files` lists the files that were read (for the permissions warning). */
-export function loadCredentials({ env = process.env, home = env.AGENTOS_HOME || join(homedir(), '.agentos') } = {}) {
+export function loadCredentials({ env = process.env, home = agentosHome({ env }) } = {}) {
   const dotenvPath = join(home, '.env')
   const jsonPath = join(home, 'config.json')
   const fromDotenv = parseEnv(readOptional(dotenvPath) ?? '')
@@ -80,7 +80,7 @@ export function looseFiles(creds) {
   return creds.files.filter((f) => { try { return (statSync(f).mode & 0o077) !== 0 } catch { return false } })
 }
 
-export const SETUP_HELP = 'Crea el archivo ~/.agentos/.env con dos líneas: AGENTOS_USER=tu-usuario y AGENTOS_PASSWORD=tu-contraseña'
+export const SETUP_HELP = 'Crea el archivo data/.env (dentro de la carpeta de AgentOS) con dos líneas: AGENTOS_USER=tu-usuario y AGENTOS_PASSWORD=tu-contraseña'
 
 export function createAuth(db, { enabled = true, now = () => Date.now(), credentials = loadCredentials } = {}) {
   const fails = { n: 0, until: 0 }

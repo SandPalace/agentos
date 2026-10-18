@@ -39,7 +39,7 @@
     {
       "name": "executive-team",
       "source": "./plugins/executive-team",
-      "description": "Equipo de dirección agéntico: CEO y CFO (el COO vive en agentos-core).",
+      "description": "Equipo de dirección agéntico: CEO, CFO y COO de operación (operations-chief; el Assistant `coo` vive en agentos-core).",
       "author": {
         "name": "Mty Agentic Labs"
       }

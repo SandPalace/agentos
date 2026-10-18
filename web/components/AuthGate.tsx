@@ -11,8 +11,8 @@ export const useAuth = () => useContext(Ctx)
 const FIELD = 'rounded-sm border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-blue'
 
 /**
- * Local sign-in for the person who owns this AgentOS. The username and password live in ~/.agentos/.env (or env vars, or
- * ~/.agentos/config.json); the form only checks them. Nothing under it (office, SSE, files) loads until there is a session.
+ * Local sign-in for the person who owns this AgentOS. The username and password live in data/.env (or env vars, or
+ * data/config.json); the form only checks them. Nothing under it (office, SSE, files) loads until there is a session.
  * If the server is unreachable the pages render so they can show their own "server not found" notice.
  */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
@@ -68,12 +68,12 @@ function Unconfigured({ onRetry }: { onRetry: () => void }) {
       <div>
         <h1 className="text-lg font-extrabold tracking-tight">Falta configurar tu acceso</h1>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Para entrar a tu oficina, define tu usuario y tu contraseña en un archivo de esta computadora. Crea <code className="font-mono">~/.agentos/.env</code> con estas dos líneas:
+          Para entrar a tu oficina, define tu usuario y tu contraseña en un archivo de esta computadora. Dentro de la carpeta de AgentOS crea <code className="font-mono">data/.env</code> con estas dos líneas:
         </p>
       </div>
       <pre className="overflow-x-auto rounded-sm border border-line bg-bg px-3 py-2 font-mono text-xs">{`AGENTOS_USER=tu-usuario\nAGENTOS_PASSWORD=una-contraseña-larga`}</pre>
       <p className="text-xs leading-relaxed text-muted">
-        En la terminal, para que nadie más lo lea: <code className="font-mono">chmod 600 ~/.agentos/.env</code>. También sirven las variables de entorno con esos nombres o <code className="font-mono">~/.agentos/config.json</code> con <code className="font-mono">{'{"user": "…", "password": "…"}'}</code>.
+        En la terminal, para que nadie más lo lea: <code className="font-mono">chmod 600 data/.env</code>. También sirven las variables de entorno con esos nombres o <code className="font-mono">data/config.json</code> con <code className="font-mono">{'{"user": "…", "password": "…"}'}</code>.
       </p>
       <button onClick={onRetry} className="rounded-full bg-blue px-5 py-2 text-sm font-semibold text-white hover:opacity-90">Ya lo guardé, reintentar</button>
     </Shell>
@@ -112,7 +112,7 @@ function LoginForm({ onDone }: { onDone: () => void }) {
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
           <h1 className="text-lg font-extrabold tracking-tight">Inicia sesión</h1>
-          <p className="mt-1 text-xs text-muted">Usa el usuario y la contraseña de tu archivo <code className="font-mono">~/.agentos/.env</code>.</p>
+          <p className="mt-1 text-xs text-muted">Usa el usuario y la contraseña de tu archivo <code className="font-mono">data/.env</code>.</p>
         </div>
         <label className="flex flex-col gap-1 text-xs font-semibold text-muted">
           Usuario

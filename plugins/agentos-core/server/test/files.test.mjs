@@ -495,13 +495,13 @@ test('import-disk: ingests the workspace folder as files/<rel>, idempotent, skip
     assert.equal((await call('POST', '/api/workspaces/imp/import-disk', { root: outside })).status, 403)
     assert.equal((await call('POST', '/api/workspaces/imp/import-disk', { root: join(w.root, 'no-existe') })).status, 404)
     // default root contains other workspaces' roots: they are not imported into default
-    mkdirSync(ROOT, { recursive: true })
-    writeFileSync(join(ROOT, 'raiz.md'), '# raiz')
+    mkdirSync(join(ROOT, 'default'), { recursive: true })
+    writeFileSync(join(ROOT, 'default', 'raiz.md'), '# raiz')
     const rd = await call('POST', '/api/workspaces/default/import-disk?wait=1', {})
     assert.equal(rd.status, 200)
     const names = (await call('GET', '/api/workspaces/default/files?prefix=files/&recursive=1')).body.files.map((f) => f.name)
     assert.ok(names.includes('raiz.md'))
-    assert.ok(!names.some((n) => n.startsWith('workspaces/')))
+    assert.ok(!names.some((n) => n.startsWith('workspaces/') || n.startsWith('imp/')))
     // status carries progress
     const st = (await call('GET', '/api/storage/status')).body
     assert.equal(st.import.running, false)
@@ -515,7 +515,8 @@ test('startBackground: one-time import of `default`, recorded in settings and no
   process.env.AGENTOS_ROOT = root
   const db = openDb(':memory:')
   process.env.AGENTOS_ROOT = prev
-  writeFileSync(join(root, 'hola.md'), '# hola')
+  mkdirSync(join(root, 'default'), { recursive: true })
+  writeFileSync(join(root, 'default', 'hola.md'), '# hola')
   const { app, call } = await boot({ db })
   try {
     const logs = []
@@ -523,7 +524,7 @@ test('startBackground: one-time import of `default`, recorded in settings and no
     assert.ok(logs.some((l) => /Import of the default/.test(l)), logs.join('\n'))
     assert.equal((await call('GET', '/api/workspaces/default/files?prefix=files/')).body.files[0].name, 'hola.md')
     assert.ok(app.store.getSetting('import.disk.default').done_at)
-    writeFileSync(join(root, 'otro.md'), 'x')
+    writeFileSync(join(root, 'default', 'otro.md'), 'x')
     await app.startBackground(() => {})
     assert.equal((await call('GET', '/api/workspaces/default/files?prefix=files/')).body.files.length, 1) // not repeated
   } finally { await app.close() }

@@ -1,12 +1,12 @@
 import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { homedir } from 'node:os'
+import { agentosHome, agentosRoot, defaultWorkspaceRoot } from './paths.mjs'
 
-export const defaultDbPath = () => process.env.AGENTOS_DB || join(process.env.AGENTOS_HOME || join(homedir(), '.agentos'), 'agentos.db')
+export const defaultDbPath = () => process.env.AGENTOS_DB || join(agentosHome(), 'agentos.db')
 
-// Carpeta que los agentes ya usaban; es la raíz del workspace `default`.
-export const defaultRoot = () => process.env.AGENTOS_ROOT || join(homedir(), 'AgentOS')
+// Carpetas de trabajo (<proyecto>/workspaces; antes ~/AgentOS); contiene `default` y los demás workspaces.
+export const defaultRoot = () => agentosRoot()
 
 const hasCol = (db, table, col) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col)
 const addCol = (db, table, col, def) => { if (!hasCol(db, table, col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`) }
@@ -88,7 +88,7 @@ export const MIGRATIONS = [
        archived_at INTEGER
      )`)
     const ts = Date.now()
-    db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, root, created_at, updated_at) VALUES ('default', 'Default', ?, ?, ?)`).run(defaultRoot(), ts, ts)
+    db.prepare(`INSERT OR IGNORE INTO workspaces (id, name, root, created_at, updated_at) VALUES ('default', 'Default', ?, ?, ?)`).run(defaultWorkspaceRoot(), ts, ts)
   },
   // 6 · workspace_id en sesiones, tareas, entregables, equipos y eventos; COO por workspace.
   (db) => {
@@ -244,6 +244,18 @@ export const MIGRATIONS = [
      sent_message_id TEXT
    );
    CREATE INDEX IF NOT EXISTS wa_drafts_ws ON wa_drafts(workspace_id, status, created_at);`,
+  // · Limpieza del botón «Simular actividad» (eliminado): sus check-ins dejaban agentes en la oficina que no eran de ningún
+  //   equipo y no se podían borrar, más una tarea de ejemplo. Solo borra lo que tiene exactamente los textos del demo.
+  `DELETE FROM events WHERE session_id IN (SELECT id FROM sessions WHERE id LIKE 'mcp:%' AND (
+     (agent = 'cmo' AND detail = 'Coordinando el periodo') OR (agent = 'researcher' AND detail = 'WebSearch: precios de renta en San Nicolás')
+     OR (agent = 'creative' AND detail = 'Necesita tu firma en el copy') OR (agent = 'analyst' AND detail = 'Listo')
+     OR id IN ('mcp:investigador', 'mcp:creativo', 'mcp:analista')));
+   DELETE FROM sessions WHERE id LIKE 'mcp:%' AND (
+     (agent = 'cmo' AND detail = 'Coordinando el periodo') OR (agent = 'researcher' AND detail = 'WebSearch: precios de renta en San Nicolás')
+     OR (agent = 'creative' AND detail = 'Necesita tu firma en el copy') OR (agent = 'analyst' AND detail = 'Listo')
+     OR id IN ('mcp:investigador', 'mcp:creativo', 'mcp:analista'));
+   DELETE FROM outputs WHERE task_id IN (SELECT id FROM tasks WHERE title = 'Reporte de leads de la semana (demo)');
+   DELETE FROM tasks WHERE title = 'Reporte de leads de la semana (demo)';`,
 ]
 
 export function openDb(path = defaultDbPath()) {

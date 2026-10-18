@@ -17,7 +17,9 @@
   ::placeholder { color: rgb(var(--muted) / 0.7); }
 }
 html, body { background: rgb(var(--bg)); color: rgb(var(--ink)); }
-body { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+/* Cuerpo en JetBrains Mono; títulos en Poppins. */
+body { font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; }
 .label { font-family: var(--font-grotesk), var(--font-poppins), sans-serif; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: rgb(var(--muted)); }
 .card { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: 2px; }
 

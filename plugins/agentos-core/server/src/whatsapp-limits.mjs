@@ -3,7 +3,7 @@
 //   { "max_per_hour": 20, "max_per_day": 100, "max_text_length": 1500 }
 // Mode: read + send only with the person's click. Agents never send; there is no send tool.
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { agentosHome } from './paths.mjs'
 import { join } from 'node:path'
 
 export const DEFAULT_WA_LIMITS = Object.freeze({ max_per_hour: 20, max_per_day: 100, max_text_length: 1500 })
@@ -11,7 +11,7 @@ export const DEFAULT_WA_LIMITS = Object.freeze({ max_per_hour: 20, max_per_day: 
 const posInt = (v) => (Number.isInteger(v) && v > 0 && v < 1_000_000 ? v : undefined)
 
 /** Defaults + overrides from whatsapp.json (invalid or missing file = defaults). */
-export function loadWaLimits({ env = process.env, home = env.AGENTOS_HOME || join(homedir(), '.agentos') } = {}) {
+export function loadWaLimits({ env = process.env, home = agentosHome({ env }) } = {}) {
   let j = {}
   try { j = JSON.parse(readFileSync(join(home, 'whatsapp.json'), 'utf8')) } catch { /* missing or invalid */ }
   const out = { ...DEFAULT_WA_LIMITS }

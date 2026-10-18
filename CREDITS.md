@@ -6,4 +6,4 @@
 - **Fuentes**: Inter (incluida la de `web/public/fonts`), DM Sans, Instrument Serif, Space Grotesk, Space Mono y Luckiest Guy, cada una con su licencia abierta (SIL Open Font License o Apache 2.0) en el `LICENSE`/`OFL.txt` de su carpeta.
 - **Skills de diseño del equipo de desarrollo web**: ver `plugins/dev-team/THIRD-PARTY-NOTICES.md`.
 - **Tesseract (Mirage)**: no se incluye; su skill oficial se instala con Tesseract desde Mirage.
-- **open-wa** (WhatsApp): no se incluye; `agentos whatsapp` lo descarga con `npx`. Proyecto no oficial, ver `docs/WHATSAPP-OPENWA.md`.
+- **open-wa** (WhatsApp): no se incluye; `./bin/agentos whatsapp` lo descarga con `npx`. Proyecto no oficial, ver `docs/WHATSAPP-OPENWA.md`.

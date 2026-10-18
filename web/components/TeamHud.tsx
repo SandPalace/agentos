@@ -11,7 +11,7 @@ const PILL: Record<string, string> = {
 
 // El equipo como pantalla flotante (HUD) en la esquina inferior izquierda del juego.
 // Un clic en un agente abre su conversación en Claude (la ligada en Equipos) o una nueva si no tiene.
-export default function TeamHud({ seats, selectedKey, onOpen, linked, codexKeys = [] }: { codexKeys?: string[]; seats: Seat[]; selectedKey: string | null; onOpen: (key: string) => void; linked: (s: Seat) => boolean }) {
+export default function TeamHud({ seats, selectedKey, onOpen, linked, codexKeys = [], coworkKeys = [] }: { codexKeys?: string[]; coworkKeys?: string[]; seats: Seat[]; selectedKey: string | null; onOpen: (key: string) => void; linked: (s: Seat) => boolean }) {
   const ready = seats.filter((s) => s.live || linked(s)).length
   return (
     <section className="flex max-h-full w-full flex-col overflow-hidden rounded-sm border border-line bg-surface/95" aria-label="Equipo">
@@ -24,7 +24,7 @@ export default function TeamHud({ seats, selectedKey, onOpen, linked, codexKeys 
           <li key={s.key}>
             <button
               onClick={() => onOpen(s.key)}
-              title={linked(s) ? `Abrir la conversación de ${s.member.name} en ${codexKeys.includes(s.key) ? 'Codex' : 'Claude'}` : `Empezar una conversación nueva con ${s.member.name}`}
+              title={linked(s) ? `Abrir la conversación de ${s.member.name} en ${codexKeys.includes(s.key) ? 'Codex' : coworkKeys.includes(s.key) ? 'Cowork' : 'Claude Code'}` : `Empezar una conversación nueva con ${s.member.name}`}
               className={`flex w-full items-start gap-2.5 rounded-sm px-2 py-1.5 text-left hover:bg-bg ${s.key === selectedKey ? 'bg-blue-soft/60' : ''}`}
             >
               <span className="mt-1 h-2.5 w-2.5 flex-none rounded-sm" style={{ background: s.member.color }} />

@@ -10,9 +10,9 @@
         "-y",
         "@playwright/mcp@latest",
         "--user-data-dir",
-        "${HOME}/.agentos/browser/meta",
+        "${AGENTOS_HOME}/browser/meta",
         "--output-dir",
-        "${HOME}/.agentos/browser/meta-output",
+        "${AGENTOS_HOME}/browser/meta-output",
         "--viewport-size",
         "1440,900"
       ]

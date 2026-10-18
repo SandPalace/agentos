@@ -6,7 +6,7 @@
 // Folders are implicit (key prefixes); `files/<dir>/.keep` is an empty-folder marker hidden from listings.
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { defaultRoot } from './db.mjs'
+import { defaultWorkspaceRoot } from './paths.mjs'
 import { AppError, bucketOf } from './store.mjs'
 import { assertBlobKey, readStream, BlobError } from './blobstore.mjs'
 import { contentTypeOf } from './outputs-storage.mjs'
@@ -44,7 +44,7 @@ export function createFiles({ store, blobs, limits: custom = {} }) {
     if (typeof raw !== 'string') throw new AppError('bad_path', 'path must be a string')
     let p = raw.trim().replace(/\\/g, '/')
     let legacy = false
-    const roots = [store.getWorkspace(ws)?.root, defaultRoot(), join(homedir(), 'AgentOS')]
+    const roots = [store.getWorkspace(ws)?.root, defaultWorkspaceRoot(), join(homedir(), 'AgentOS')]
       .filter(Boolean).map((r) => r.replace(/\\/g, '/').replace(/\/+$/, '')).sort((a, b) => b.length - a.length)
     if (/^~\/AgentOS(\/|$)/.test(p)) { p = p.replace(/^~\/AgentOS/, ''); legacy = true }
     else for (const r of roots) if (p === r || p.startsWith(r + '/') || (process.platform === 'win32' && (p.toLowerCase() === r.toLowerCase() || p.toLowerCase().startsWith(r.toLowerCase() + '/')))) { p = p.slice(r.length); legacy = true; break }

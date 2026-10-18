@@ -41,12 +41,13 @@ last import-disk job; `limits` are `max_file_bytes`, `max_read_bytes`, `max_list
 ## Workspaces
 
 A workspace = an account/project. Teams (and their `active` flag), tasks, deliveries, sessions, events, the COO
-config and files are scoped to one. `default` (name "Default", root `~/AgentOS`) holds everything created before
-workspaces existed. Other workspaces live in `~/AgentOS/workspaces/<id>/` (created with the workspace).
+config and files are scoped to one. `default` (name "Default") holds everything created before
+workspaces existed. Layout (`paths.mjs`: `workspaceDir()` / `defaultWorkspaceRoot()`): new installs and migrated ones use `<project>/workspaces/default` and `<project>/workspaces/<id>/`
+(`AGENTOS_ROOT` = `<project>/workspaces`); a legacy install not yet migrated (`AGENTOS_ROOT` = `~/AgentOS`) keeps `default` = `~/AgentOS` and others in `~/AgentOS/workspaces/<id>/`.
 
 **Session to workspace** (hooks and MCP), first match wins:
 1. `AGENTOS_WORKSPACE` (hook payload `env.AGENTOS_WORKSPACE` / `agentos_workspace` / `X-AgentOS-Workspace` header, or the MCP process env), if that workspace exists.
-2. The workspace with the **longest `root` that is a path prefix of the cwd** (so `~/AgentOS/workspaces/acme/x` is `acme`, not `default`). Matching is by path segment (`acme` does not match `acme-otro`).
+2. The workspace with the **longest `root` that is a path prefix of the cwd** (so `<project>/workspaces/acme/x` is `acme`, not `default`). Matching is by path segment (`acme` does not match `acme-otro`).
 3. `default`.
 
 The MCP server sends `X-AgentOS-Workspace` (if `AGENTOS_WORKSPACE` is set) or `X-AgentOS-Cwd` (its cwd) on every call,
@@ -66,7 +67,7 @@ deleted. Re-creating an archived id revives it.
 | `AGENTOS_PORT` | server port (default 4780) |
 | `AGENTOS_DB` | SQLite path (default `<home>/agentos.db`) |
 | `AGENTOS_HOME` | folder for the database, the log and the local store at `<home>/store` (default `~/.agentos`) |
-| `AGENTOS_ROOT` | root of the `default` workspace at first migration (default `~/AgentOS`); also an allowed root for disk fallback serving |
+| `AGENTOS_ROOT` | parent folder of all workspace folders (default `<project>/workspaces`; legacy `~/AgentOS` if not migrated); also an allowed root for disk fallback serving |
 | `AGENTOS_WORKSPACE` | force the workspace of a session / MCP process |
 
 ## Key layout

@@ -47,7 +47,7 @@ test('migración: una base con el esquema viejo queda toda en el workspace defau
   assert.equal(ws.length, 1)
   assert.equal(ws[0].id, 'default')
   assert.equal(ws[0].name, 'AgentOS') // el proyecto por defecto se llama AgentOS
-  assert.equal(ws[0].root, ROOT)
+  assert.equal(ws[0].root, join(ROOT, 'default'))
   for (const t of ['sessions', 'tasks', 'outputs', 'teams', 'events']) {
     const rows = db.prepare(`SELECT workspace_id FROM ${t}`).all()
     assert.ok(rows.length >= 1, t)
@@ -80,7 +80,7 @@ test('workspaces: crear, renombrar, archivar (no borra archivos) y slug de id', 
     assert.equal(w.status, 201)
     assert.equal(w.body.id, 'cliente-nandu-co')
     assert.equal(w.body.bucket, 'ws-cliente-nandu-co')
-    assert.equal(w.body.root, join(ROOT, 'workspaces', 'cliente-nandu-co'))
+    assert.equal(w.body.root, join(ROOT, 'cliente-nandu-co'))
     assert.ok(existsSync(w.body.root))
     assert.equal((await call('POST', '/api/workspaces', { name: 'otro', id: 'cliente-nandu-co' })).status, 409)
     assert.equal((await call('POST', '/api/workspaces', { name: '   ' })).status, 400)
@@ -182,19 +182,19 @@ test('sesión → workspace: por cwd con raíces anidadas y por AGENTOS_WORKSPAC
   try {
     await call('POST', '/api/workspaces', { name: 'Acme', id: 'acme' }) // ROOT/workspaces/acme
     await call('POST', '/api/workspaces', { name: 'Acme Sub', id: 'acme-sub' })
-    const nested = join(ROOT, 'workspaces', 'acme', 'sub')
+    const nested = join(ROOT, 'acme', 'sub')
     await call('PATCH', '/api/workspaces/acme-sub', { root: nested }) // raíz anidada dentro de otra
     const ws = (cwd, extra = {}, id = 's') => call('POST', '/hooks/SessionStart', { session_id: id, cwd, ...extra }).then(async () => (await call('GET', '/api/sessions?workspace=*')).status)
     const where = async (id) => (await call('GET', `/api/workspaces/resolve?cwd=${encodeURIComponent(id)}`)).body.workspace
-    assert.equal(await where(join(ROOT, 'workspaces', 'acme', 'campana', 'x')), 'acme')
+    assert.equal(await where(join(ROOT, 'acme', 'campana', 'x')), 'acme')
     assert.equal(await where(join(nested, 'deep')), 'acme-sub') // gana la raíz más larga
     assert.equal(await where(nested), 'acme-sub')
-    assert.equal(await where(join(ROOT, 'workspaces', 'acme-otro')), 'default') // no es prefijo de ruta (acme vs acme-otro)
+    assert.equal(await where(join(ROOT, 'acme-otro')), 'default') // no es prefijo de ruta (acme vs acme-otro)
     assert.equal(await where(join(ROOT, 'otra')), 'default')
     assert.equal(await where('/Users/x/inmobiliaria'), 'default')
     assert.equal(await where(''), 'default')
 
-    await call('POST', '/hooks/SessionStart', { session_id: 'a', cwd: join(ROOT, 'workspaces', 'acme', 'p') })
+    await call('POST', '/hooks/SessionStart', { session_id: 'a', cwd: join(ROOT, 'acme', 'p') })
     await call('POST', '/hooks/SessionStart', { session_id: 'b', cwd: join(nested, 'q') })
     await call('POST', '/hooks/SessionStart', { session_id: 'c', cwd: '/Users/x/otro' })
     await call('POST', '/hooks/SessionStart', { session_id: 'd', cwd: '/Users/x/otro', env: { AGENTOS_WORKSPACE: 'acme' } }) // explícito gana
@@ -206,7 +206,7 @@ test('sesión → workspace: por cwd con raíces anidadas y por AGENTOS_WORKSPAC
     assert.deepEqual(await ids('default'), ['c'])
     // el hook de SessionStart devuelve el contexto del workspace de la sesión
     await call('POST', '/api/teams', { name: 'M', members: [{ agent_id: 'cmo', context: 'solo acme' }] }, { 'x-agentos-workspace': 'acme' })
-    const h = await call('POST', '/hooks/SessionStart', { session_id: 'f', cwd: join(ROOT, 'workspaces', 'acme'), agent_type: 'marketing-team:cmo' })
+    const h = await call('POST', '/hooks/SessionStart', { session_id: 'f', cwd: join(ROOT, 'acme'), agent_type: 'marketing-team:cmo' })
     assert.match(h.body.hookSpecificOutput.additionalContext, /solo acme/)
     const h2 = await call('POST', '/hooks/SessionStart', { session_id: 'g', cwd: '/Users/x/otro', agent_type: 'marketing-team:cmo' })
     assert.equal(h2.body, null) // en default no hay contexto para cmo
@@ -434,7 +434,7 @@ test('proyecto nuevo: su carpeta va en AGENTOS_ROOT/workspaces aunque el default
   const store = createStore(openDb(':memory:'))
   store.updateWorkspace('default', { name: 'AgentOS', root: '/tmp/codigo-de-agentos' })
   const w = store.createWorkspace({ name: 'Proyecto Nuevo' })
-  assert.equal(w.root, join(ROOT, 'workspaces', w.id))
+  assert.equal(w.root, join(ROOT, w.id))
   assert.equal(store.workspaceForCwd('/tmp/codigo-de-agentos/web'), 'default')
 })
 

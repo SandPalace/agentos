@@ -5,8 +5,7 @@ import { mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { stateFromEvent, projectName } from './status.mjs'
 import { loadRoster } from './roster.mjs'
-import { pathInside } from './paths.mjs'
-import { defaultRoot } from './db.mjs'
+import { pathInside, workspaceDir } from './paths.mjs'
 
 export const DEFAULT_WS = 'default'
 export const slugify = (v) => String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '')
@@ -122,10 +121,8 @@ export function createStore(db, { roster: rosterOpt = null } = {}) {
       const baseId = wid
       for (let i = 2; exists(wid); i++) wid = `${baseId.slice(0, 36)}-${i}`
     }
-    // Los proyectos nuevos van en ~/AgentOS/workspaces/<id> (AGENTOS_ROOT), aunque el proyecto default apunte a otra carpeta
-    // (p. ej. al código de AgentOS para que se edite a sí mismo).
-    const base = defaultRoot()
-    const root = join(base, 'workspaces', wid)
+    // Los nuevos van en <proyecto>/workspaces/<id> (AGENTOS_ROOT/<id>); en la estructura vieja, ~/AgentOS/workspaces/<id>.
+    const root = workspaceDir(wid)
     mkdirSync(root, { recursive: true })
     const ts = now()
     if (exists(wid)) db.prepare('UPDATE workspaces SET name = ?, root = ?, archived_at = NULL, updated_at = ? WHERE id = ?').run(nm, root, ts, wid) // revive uno archivado

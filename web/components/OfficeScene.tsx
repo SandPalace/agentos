@@ -383,21 +383,21 @@ function CameraRig({ layout, view, follow, player }: { layout: OfficeLayout; vie
 }
 
 /** Aviso estilo Roblox: tecla «E» + etiqueta, flotando sobre el objetivo (el agente o el tablero), no sobre la persona. */
-function InteractPrompt({ it, at, codex }: { it: Interaction; at: [number, number, number]; codex?: boolean }) {
+function InteractPrompt({ it, at, codex, cowork }: { it: Interaction; at: [number, number, number]; codex?: boolean; cowork?: boolean }) {
   return (
     <Html position={at} center sprite style={{ pointerEvents: 'none' }}>
       <div className="flex items-center gap-2 whitespace-nowrap rounded-full border border-line bg-surface px-3 py-1.5 text-ink shadow-none">
         <span className="flex h-7 w-7 items-center justify-center rounded-md border-2 border-ink bg-surface text-sm font-extrabold">E</span>
         <span className="flex flex-col leading-tight">
           <span className="text-xs font-semibold">{it.label}</span>
-          {it.kind === 'talk' && <span className="text-[10px] text-muted">{codex ? 'Abre la conversación en Codex' : 'Abre la conversación en Claude Desktop'}</span>}
+          {it.kind === 'talk' && <span className="text-[10px] text-muted">{codex ? 'Abre la conversación en Codex' : cowork ? 'Su tarea está en Cowork' : 'Abre la conversación en Claude Desktop'}</span>}
         </span>
       </div>
     </Html>
   )
 }
 
-function Scene({ teamNames, view, follow, dark, player, onInteract, chars, layout, ready, chill, doneAt, onPathDone, onBuilt, tasks, selectedTask, onSelectTask, selectedSeat, onSelectSeat, codexKeys }: any) {
+function Scene({ teamNames, view, follow, dark, player, onInteract, chars, layout, ready, chill, doneAt, onPathDone, onBuilt, tasks, selectedTask, onSelectTask, selectedSeat, onSelectSeat, codexKeys, coworkKeys }: any) {
   const [nearId, setNearId] = useState<string | null>(null)
   // Zonas del tablero y del Assistant + una por cada personaje (en su escritorio o sillón; los que caminan no).
   const interactions = useMemo(() => {
@@ -441,7 +441,7 @@ function Scene({ teamNames, view, follow, dark, player, onInteract, chars, layou
   }, [nearIt, chars, layout])
   return (
     <>
-      {nearIt && promptAt && <InteractPrompt it={nearIt} at={promptAt} codex={codexKeys?.includes(nearIt.id === 'assistant' ? 'coo' : nearIt.target ?? '')} />}
+      {nearIt && promptAt && <InteractPrompt it={nearIt} at={promptAt} codex={codexKeys?.includes(nearIt.id === 'assistant' ? 'coo' : nearIt.target ?? '')} cowork={coworkKeys?.includes(nearIt.id === 'assistant' ? 'coo' : nearIt.target ?? '')} />}
       {/* Luz cálida, como la de las referencias */}
       {/* Luz según la hora real de la persona (?hour=21 para ver otra hora) */}
       <Daylight layout={layout} dark={dark} />
@@ -509,7 +509,7 @@ function Scene({ teamNames, view, follow, dark, player, onInteract, chars, layou
   )
 }
 
-export default function OfficeScene({ seats, teams, tasks, selectedTask, onSelectTask, selectedSeat, onSelectSeat, onInteract, projectName, codexKeys }: { codexKeys?: string[]; projectName?: string; seats: TeamSeat[]; teams: { name: string; size: number }[]; tasks: Task[]; selectedTask: string | null; onSelectTask: (id: string) => void; selectedSeat: string | null; onSelectSeat: (key: string | null) => void; onInteract: (id: string) => void }) {
+export default function OfficeScene({ seats, teams, tasks, selectedTask, onSelectTask, selectedSeat, onSelectSeat, onInteract, projectName, codexKeys, coworkKeys }: { codexKeys?: string[]; coworkKeys?: string[]; projectName?: string; seats: TeamSeat[]; teams: { name: string; size: number }[]; tasks: Task[]; selectedTask: string | null; onSelectTask: (id: string) => void; selectedSeat: string | null; onSelectSeat: (key: string | null) => void; onInteract: (id: string) => void }) {
   // Vista: perspectiva por defecto; ?view=iso|top|persp o los botones la cambian (se recuerda en el navegador).
   const [view, setView] = useState<OfficeView>('persp')
   useEffect(() => {
@@ -691,7 +691,7 @@ export default function OfficeScene({ seats, teams, tasks, selectedTask, onSelec
     <Canvas shadows="soft" className="h-full w-full" gl={{ antialias: true, alpha: true, toneMappingExposure: 1.12 }}>
       <color key={dark ? 'd' : daylight.background} attach="background" args={[dark ? '#12151B' : daylight.background]} />
       <Suspense fallback={null}>
-        <Scene teamNames={teamNames} view={view} follow={follow} dark={dark} player={player} onInteract={onInteract} chars={chars} layout={layout} ready={!!nav && nav.layout === layout} chill={chill} doneAt={doneAt} onPathDone={onPathDone} onBuilt={onBuilt} tasks={tasks} selectedTask={selectedTask} onSelectTask={onSelectTask} selectedSeat={selectedSeat} onSelectSeat={onSelectSeat} codexKeys={codexKeys} />
+        <Scene teamNames={teamNames} view={view} follow={follow} dark={dark} player={player} onInteract={onInteract} chars={chars} layout={layout} ready={!!nav && nav.layout === layout} chill={chill} doneAt={doneAt} onPathDone={onPathDone} onBuilt={onBuilt} tasks={tasks} selectedTask={selectedTask} onSelectTask={onSelectTask} selectedSeat={selectedSeat} onSelectSeat={onSelectSeat} codexKeys={codexKeys} coworkKeys={coworkKeys} />
       </Suspense>
     </Canvas>
     </div>

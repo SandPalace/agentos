@@ -10,13 +10,18 @@ while [ -L "$SELF" ]; do
 done
 REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
 
-AGENTOS_HOME="${AGENTOS_HOME:-$HOME/.agentos}"
+# Datos en <repo>/data y workspaces en <repo>/workspaces (misma regla que el servidor: si solo existen las
+# carpetas de una instalación anterior, ~/.agentos / ~/AgentOS, se siguen usando hasta migrarlas).
+if [ -z "${AGENTOS_HOME:-}" ] && [ -d "$HOME/.agentos" ] && [ ! -d "$REPO/data" ]; then AGENTOS_HOME="$HOME/.agentos"; fi
+if [ -z "${AGENTOS_ROOT:-}" ] && [ -d "$HOME/AgentOS" ] && [ ! -d "$REPO/workspaces" ]; then AGENTOS_ROOT="$HOME/AgentOS"; fi
+AGENTOS_HOME="${AGENTOS_HOME:-$REPO/data}"
+AGENTOS_ROOT="${AGENTOS_ROOT:-$REPO/workspaces}"
 PORT="${AGENTOS_PORT:-4780}"
 WEB_PORT="${AGENTOS_WEB_PORT:-4781}"
 RUN="$AGENTOS_HOME/run"; LOGS="$AGENTOS_HOME/logs"
 SERVER_JS="$REPO/plugins/agentos-core/server/src/server.mjs"
 NEXT_BIN="$REPO/web/node_modules/next/dist/bin/next"
-export AGENTOS_PORT="$PORT" AGENTOS_HOME
+export AGENTOS_PORT="$PORT" AGENTOS_HOME AGENTOS_ROOT
 
 say() { printf '%s\n' "$*"; }
 healthy() { curl -fsS -m 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; }
@@ -37,7 +42,7 @@ cmd_start() {
   if [ ! -d "$REPO/web/.next" ]; then say "Falta compilar la web. Corre ./install.sh primero."; exit 1; fi
   if healthy; then say "Servidor ya estaba corriendo (puerto $PORT)."
   else
-    if [ -n "$(port_pid "$PORT")" ]; then say "El puerto $PORT está ocupado por otro programa. Ciérralo o usa AGENTOS_PORT=otro-puerto agentos start."; exit 1; fi
+    if [ -n "$(port_pid "$PORT")" ]; then say "El puerto $PORT está ocupado por otro programa. Ciérralo o usa AGENTOS_PORT=otro-puerto ./bin/agentos start."; exit 1; fi
     nohup node "$SERVER_JS" >>"$LOGS/server.log" 2>&1 </dev/null &
     echo $! >"$RUN/server.pid"; disown 2>/dev/null || true
     for _ in $(seq 1 40); do healthy && break; sleep 0.25; done
@@ -46,7 +51,7 @@ cmd_start() {
   fi
   if web_up; then say "Oficina web ya estaba corriendo (puerto $WEB_PORT)."
   else
-    if [ -n "$(port_pid "$WEB_PORT")" ]; then say "El puerto $WEB_PORT está ocupado por otro programa. Usa AGENTOS_WEB_PORT=otro-puerto agentos start."; exit 1; fi
+    if [ -n "$(port_pid "$WEB_PORT")" ]; then say "El puerto $WEB_PORT está ocupado por otro programa. Usa AGENTOS_WEB_PORT=otro-puerto ./bin/agentos start."; exit 1; fi
     (cd "$REPO/web" && nohup node "$NEXT_BIN" start -p "$WEB_PORT" -H 127.0.0.1 >>"$LOGS/web.log" 2>&1 </dev/null & echo $! >"$RUN/web.pid")
     for _ in $(seq 1 80); do web_up && break; sleep 0.25; done
     web_up || { say "La web no arrancó. Revisa $LOGS/web.log"; exit 1; }
@@ -71,7 +76,7 @@ cmd_status() {
   healthy && say "Servidor:      corriendo (puerto $PORT)" || say "Servidor:      detenido"
   web_up  && say "Oficina web:   corriendo -> http://localhost:$WEB_PORT" || say "Oficina web:   detenida"
   local wp wh; wp="$(wa_port)"; wh="$(curl -fsS -m 2 "http://127.0.0.1:$wp/health" 2>/dev/null || true)"
-  if [ -z "$wh" ]; then say "WhatsApp:      detenido (opcional: agentos whatsapp)"
+  if [ -z "$wh" ]; then say "WhatsApp:      detenido (opcional: ./bin/agentos whatsapp)"
   elif printf '%s' "$wh" | grep -q '"connected":true'; then say "WhatsApp:      conectado (puerto $wp)"
   else say "WhatsApp:      corriendo, esperando que escanees el QR (puerto $wp)"; fi
   say "Repo: $REPO"
@@ -128,7 +133,7 @@ cmd_whatsapp() {
   local url key secret wp
   url="$(env_get AGENTOS_WA_URL)"; key="$(env_get AGENTOS_WA_API_KEY)"; secret="$(env_get AGENTOS_WA_WEBHOOK_SECRET)"
   export AGENTOS_WA_URL="${url:-http://127.0.0.1:8002}"; wp="$(wa_port)"
-  healthy || say "Aviso: el servidor AgentOS no está corriendo. Abre otra terminal y corre: agentos start"
+  healthy || say "Aviso: el servidor AgentOS no está corriendo. Abre otra terminal y corre: ./bin/agentos start"
   if [ -n "$(port_pid "$wp")" ]; then say "El puerto $wp ya está en uso (¿WhatsApp ya está corriendo?)."; exit 1; fi
   mkdir -p "$wa_home"; chmod 700 "$wa_home" 2>/dev/null || true
   cat <<TXT
@@ -164,5 +169,5 @@ cmd_update() {
 case "${1:-}" in
   start) cmd_start ;; stop) cmd_stop ;; status) cmd_status ;; update) cmd_update ;;
   whatsapp) shift; cmd_whatsapp "$@" ;;
-  *) say "Uso: agentos {start|stop|status|update|whatsapp [--reset]}"; exit 2 ;;
+  *) say "Uso: ./bin/agentos {start|stop|status|update|whatsapp [--reset]}"; exit 2 ;;
 esac

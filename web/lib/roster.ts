@@ -48,6 +48,8 @@ export const ROSTERS: RosterGroup[] = [
     agents: [
       { id: 'ceo', name: 'CEO', role: 'Visión y prioridades entre áreas', color: '#5c6bc0', face: 5, hair: '#5A6470' },
       { id: 'cfo', name: 'CFO', role: 'Flujo de caja, presupuesto y rentabilidad', color: '#2e7d32', face: 1, hair: '#14161A' },
+      // Las 20 caras ya estaban ocupadas: el COO comparte la cara 13 (jefe de ventas) y se distingue por color y pelo.
+      { id: 'operations-chief', name: 'COO', role: 'Operación diaria: procesos, entregas y coordinación entre áreas', color: '#0097a7', face: 13, hair: '#5A6470' },
     ],
   },
   {

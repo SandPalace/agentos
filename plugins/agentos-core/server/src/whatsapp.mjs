@@ -14,7 +14,7 @@
 //   Incoming messages arrive through scripts/whatsapp-bridge.mjs (open-wa's CLI no longer posts webhooks).
 //   webhook (open-wa -> us)        {"event":"onMessage","data":{id,from,to,chatId,body,type,t,sender,isGroupMsg,fromMe,...}}
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { agentosHome } from './paths.mjs'
 import { join } from 'node:path'
 import { randomUUID, timingSafeEqual, createHash } from 'node:crypto'
 import { parseEnv } from './auth.mjs'
@@ -29,7 +29,7 @@ const digitsOf = (chatId) => String(chatId ?? '').split('@')[0].replace(/\D/g, '
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const bad = (m) => new AppError('bad_request', m)
 
-export function createWhatsApp({ db, store, env = process.env, home = env.AGENTOS_HOME || join(homedir(), '.agentos'), fetchFn = (...a) => fetch(...a) }) {
+export function createWhatsApp({ db, store, env = process.env, home = agentosHome({ env }), fetchFn = (...a) => fetch(...a) }) {
   const limits = () => loadWaLimits({ env, home })
 
   function config() {
