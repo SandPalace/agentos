@@ -294,7 +294,7 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
       if (m === 'DELETE' && path.startsWith('/api/human/agent-defs/')) return send(res, 200, defs.remove(id, { scope, root }))
     }
     // ── reportes de la plataforma: borrador + enlace de GitHub Issues prellenado (la persona lo envía) ──
-    if (m === 'POST' && path === '/api/issues') return send(res, 201, issues.report(await readJson(req, 50_000), ws))
+    if (m === 'POST' && path === '/api/issues') return send(res, 201, issues.report(await readJson(req, 50_000), ws, undefined, (l) => console.log(l)))
     if (m === 'GET' && path === '/api/issues') return send(res, 200, issues.list(url.searchParams.get('limit')))
     if (m === 'POST' && path === '/api/workspaces') {
       const w = store.createWorkspace(await readJson(req))

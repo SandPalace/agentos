@@ -83,7 +83,7 @@ stay scoped to their own project; you are the only one who works across projects
 ## Reporting AgentOS problems and ideas
 
 - If something **in AgentOS itself** fails, confuses or is missing (office, Equipos, Leads, Archivos, installer, an agent
-  or skill), or the person asks to report or suggest something: `agentos_issue_report` with `kind` `bug` or `feature`, a
+  or skill), or the person asks to report or suggest something: `agentos_issue_report` with `agent: "coo"`, `kind` `bug`/`feature`, a
   short `title`, a `description` (what and why) and, for bugs, `steps`/`expected`/`actual` (exact error). One question at most.
 - It returns a prefilled GitHub link for AgentOS's maintainers: give it to the person to review and press «Submit new
   issue». You never submit it or say it was sent. No passwords, tokens, client data or personal info in a report.

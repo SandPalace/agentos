@@ -12,6 +12,8 @@ export const DEFAULT_ISSUES_REPO = 'kikirrins/agentos'
 const KINDS = { bug: { prefix: 'Bug', label: 'bug' }, feature: { prefix: 'Idea', label: 'enhancement' } }
 const MAX_URL = 7500 // GitHub corta URLs muy largas; el cuerpo se recorta antes
 const clean = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
+// Id del agente que reporta, sin prefijo de plugin («executive-team:cfo» → «cfo»). El MCP no sabe quién lo llama: lo dice el agente.
+export const reporterOf = (v) => clean(v, 80).replace(/^[\w-]+:/, '').toLowerCase().replace(/[^a-z0-9_-]/g, '') || null
 
 // Versión y entorno, sin rutas ni nombres de usuario.
 export function diagnostics({ repo = repoRoot(), pluginsDir = PLUGINS_DIR } = {}) {
@@ -46,13 +48,18 @@ export function buildIssue(input, { repo = process.env.AGENTOS_ISSUES_REPO || DE
 
 export function createIssues(db) {
   const ins = db.prepare('INSERT INTO issue_reports (workspace_id, kind, title, body, url, agent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+  const logEvent = db.prepare('INSERT INTO events (ts, session_id, event, tool, payload, workspace_id) VALUES (?, ?, ?, ?, ?, ?)')
   const list = db.prepare('SELECT id, workspace_id, kind, title, url, agent, created_at FROM issue_reports ORDER BY id DESC LIMIT ?')
   return {
-    report(input, ws, opts) {
-      const r = buildIssue(input, opts)
-      const agent = clean(input?.agent, 80) || null
-      const { lastInsertRowid } = ins.run(ws, r.kind, r.title, r.body, r.url, agent, Date.now())
-      return { id: Number(lastInsertRowid), ...r, note: 'Borrador listo. Dale a la persona el enlace: lo abre, revisa y pulsa «Submit new issue» en GitHub. Nada se envía sin su clic.' }
+    report(input, ws, opts, log = () => {}) {
+      const agent = reporterOf(input?.agent) ?? 'desconocido'
+      const r = buildIssue({ ...input, agent }, opts)
+      const ts = Date.now()
+      const id = Number(ins.run(ws, r.kind, r.title, r.body, r.url, agent, ts).lastInsertRowid)
+      // Bitácora: quién reportó qué (eventos de la base + log del servidor).
+      logEvent.run(ts, null, 'IssueReport', 'agentos_issue_report', JSON.stringify({ id, kind: r.kind, title: r.title, agent }), ws)
+      log(`Reporte #${id} (${r.kind}) de ${agent} en ${ws}: ${r.title}`)
+      return { id, agent, ...r, note: 'Borrador listo. Dale a la persona el enlace: lo abre, revisa y pulsa «Submit new issue» en GitHub. Nada se envía sin su clic.' }
     },
     list: (limit = 50) => list.all(Math.min(Math.max(Number(limit) || 50, 1), 200)),
   }

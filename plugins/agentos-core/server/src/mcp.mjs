@@ -248,6 +248,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
+        agent: { type: 'string', description: 'YOUR own agent id, as in your instructions (e.g. `coo` if you are Assistant, `cmo`, `sales-lead`, `cfo`). It is logged as the reporter.' },
         kind: { type: 'string', enum: ['bug', 'feature'], description: 'bug = something fails; feature = an idea or something missing' },
         title: { type: 'string', description: 'Short summary in the person\'s language (max 120)' },
         description: { type: 'string', description: 'What happens or what is needed, and why it matters (max 4000)' },
@@ -255,7 +256,7 @@ const TOOLS = [
         expected: { type: 'string', description: 'Bug only: what should happen' },
         actual: { type: 'string', description: 'Bug only: what happens instead, with the exact error text if any' },
       },
-      required: ['kind', 'title', 'description'],
+      required: ['agent', 'kind', 'title', 'description'],
     },
   },
   {
@@ -352,7 +353,7 @@ async function callTool(name, a = {}) {
       return a.status ? all.filter((t) => t.status === a.status) : all
     }
     case 'agentos_issue_report':
-      return api('POST', '/api/issues', { ...a, agent: process.env.AGENTOS_AGENT || a.agent || null }, ws)
+      return api('POST', '/api/issues', { ...a, agent: a.agent || process.env.AGENTOS_AGENT || null }, ws)
     case 'agentos_lead_create':
       return api('POST', '/api/leads', a, ws)
     case 'agentos_lead_update': {

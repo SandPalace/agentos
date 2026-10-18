@@ -8,7 +8,7 @@ Esta guía es para macOS (Linux es igual). Para Windows, ve a la sección **Wind
 - **Claude Code** instalado (y, si quieres, Claude Desktop).
 - **Node.js 24 LTS** (mínimo 22.13). Descárgalo de https://nodejs.org. Revisa con `node -v`.
 - **Git**. En Mac, escribe `git --version` en la Terminal; si no está, macOS te ofrece instalarlo.
-- Acceso al repositorio privado de GitHub (te llega una invitación a tu correo).
+- Una cuenta de GitHub solo si quieres enviar reportes de fallas o ideas (el repositorio es público).
 
 ## Paso a paso
 
@@ -71,7 +71,7 @@ Instalador nativo para Windows 10/11 (PowerShell 5.1, el que ya trae Windows, o 
 - **Node.js 24 LTS** (mínimo 22.13): instalador de https://nodejs.org (o `winget install OpenJS.NodeJS.LTS`). Revisa con `node -v`.
 - **Git for Windows**: https://git-scm.com/download/win (o `winget install Git.Git`).
 - **Claude Code** (y, si quieres, Claude Desktop): `winget install Anthropic.ClaudeCode` o `irm https://claude.ai/install.ps1 | iex`.
-- Acceso al repositorio privado de GitHub (invitación por correo). Después de instalar cualquier cosa, **abre una terminal nueva**.
+- Después de instalar cualquier cosa, **abre una terminal nueva**.
 
 ### Paso a paso
 

@@ -30,3 +30,16 @@ test('issues: se guardan en la base y se listan', () => {
   assert.ok(r.id > 0); assert.match(r.note, /Submit new issue/)
   assert.deepEqual(iss.list().map((x) => [x.kind, x.title, x.agent]), [['bug', '[Bug] Falla', 'coo']])
 })
+
+test('issues: registra qué agente reportó (sin prefijo de plugin) en la tabla, en events y en el log', () => {
+  const db = openDb(':memory:')
+  const iss = createIssues(db)
+  const lines = []
+  const r = iss.report({ kind: 'feature', title: 'Idea', description: 'Algo', agent: 'executive-team:CFO' }, 'default', { repo: 'acme/agentos', diag }, (l) => lines.push(l))
+  assert.equal(r.agent, 'cfo')
+  assert.match(new URL(r.url).searchParams.get('body'), /Reportado por el agente: cfo/)
+  const ev = db.prepare("SELECT event, tool, payload FROM events WHERE event = 'IssueReport'").get()
+  assert.deepEqual(JSON.parse(ev.payload), { id: r.id, kind: 'feature', title: '[Idea] Idea', agent: 'cfo' })
+  assert.match(lines[0], /^Reporte #\d+ \(feature\) de cfo en default: \[Idea\] Idea$/)
+  assert.equal(iss.report({ kind: 'bug', title: 'x', description: 'y' }, 'default', { repo: 'acme/agentos', diag }).agent, 'desconocido')
+})
