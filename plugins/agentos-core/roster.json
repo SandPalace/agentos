@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T22:30:06.888Z",
+  "generated_at": "2026-10-18T22:45:45.443Z",
   "plugins": [
     {
       "id": "agentos-core",
@@ -7,7 +7,7 @@
       "agents": [
         {
           "id": "coo",
-          "description": "Assistant (id `coo`, formerly \"the COO\"), AgentOS's default agent and the front door for everything. Use it to get started, to find out \"where are we?\", which agent to use for what, how to build a team, what is waiting on the person or what is blocked. It knows every team, sees the live status and…",
+          "description": "Assistant (id `coo`, formerly \"the COO\"), AgentOS's default agent and the front door for everything. Use it to get started, to find out \"where are we?\", which agent to use for what, how to build a team, what is waiting on the person or what is blocked, or to report an AgentOS bug or feature request…",
           "model": "opus"
         }
       ],

@@ -160,7 +160,10 @@ cmd_update() {
   (cd web && npm ci --no-audit --no-fund && NEXT_PUBLIC_AGENTOS_PORT="$PORT" node node_modules/next/dist/bin/next build) || { say "Falló la compilación."; exit 1; }
   if command -v claude >/dev/null 2>&1 && [ "${AGENTOS_SKIP_CLAUDE:-}" != 1 ]; then
     claude plugin marketplace update agentos || true
-    for p in agentos-core marketing-team sales-team; do claude plugin update "$p@agentos" || true; done
+    # Instala los equipos que falten (p. ej. Dirección con CFO y COO) y actualiza los que ya están.
+    for p in agentos-core marketing-team sales-team collections-team executive-team dev-team; do
+      if claude plugin list 2>/dev/null | grep -q "$p@agentos"; then claude plugin update "$p@agentos" || true; else claude plugin install "$p@agentos" || true; fi
+    done
   fi
   say "Listo. Reinicia tus sesiones de Claude para cargar los cambios."
   [ "$was_web" = 1 ] && cmd_start

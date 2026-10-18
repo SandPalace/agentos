@@ -14,22 +14,37 @@ Los agentes nunca publican, envían ni pagan solos: todo lo externo queda como b
 
 Lee **[INSTALL.md](INSTALL.md)** (paso a paso, en español).
 
-## Actualizar desde una versión anterior
+## Actualizar a la versión nueva
 
-Las versiones anteriores guardaban tus datos fuera de esta carpeta (`~/.agentos` y `~/AgentOS`). Ahora todo vive aquí:
-`data/` (base de datos, archivos, contraseña, logs) y `workspaces/` (una carpeta por workspace: `workspaces/default`, `workspaces/<id>`). Ninguna se sube a GitHub.
+Abre Claude (Code en la terminal o una sesión de Code en Claude Desktop) **en la carpeta de AgentOS** y pídele:
 
-Después de `./bin/agentos update`, si todavía tienes las carpetas viejas:
+> Actualiza AgentOS a la versión nueva: haz `git pull` y luego sigue la sección «Actualizar AgentOS» de CLAUDE.md.
+
+Claude baja la versión, instala lo que falte (incluido el equipo de Dirección con CEO, CFO y COO), pasa tus datos a esta
+carpeta si estaban en `~/.agentos` y `~/AgentOS`, quita lo que la versión vieja había instalado a nivel sistema y te pide
+confirmar antes de borrar cualquier cosa.
+
+Si prefieres hacerlo a mano (Mac/Linux; en Windows usa `.\bin\agentos.cmd`):
 
 ```bash
-node scripts/migrate-to-project-folder.mjs          # muestra el plan, no cambia nada
 ./bin/agentos stop
-node scripts/migrate-to-project-folder.mjs --yes    # copia, corrige rutas y avisa a Claude
+git pull --ff-only
+./bin/agentos update                                # dependencias, compilación y plugins
+node scripts/migrate-to-project-folder.mjs          # solo si existen ~/.agentos o ~/AgentOS: muestra el plan
+node scripts/migrate-to-project-folder.mjs --yes    # lo hace (deja respaldo *.migrado-<fecha>)
 ./bin/agentos start
 ```
 
-O pídeselo a Claude: «migra AgentOS a la carpeta del proyecto». Las carpetas viejas quedan como respaldo
-(`*.migrado-<fecha>`); bórralas cuando confirmes que todo está en la oficina.
+Después cierra y abre Claude Desktop. Qué cambió en esta versión:
+
+- **Todo vive en esta carpeta:** `data/` (base de datos, archivos, contraseña, logs) y `workspaces/` (una carpeta por
+  workspace). Ninguna se sube a GitHub. Ya no hay comando global: usa `./bin/agentos`.
+- **Equipo de Dirección** con CEO, CFO y el nuevo COO (operación diaria).
+- **Sesiones de Claude** divididas en Code y Cowork, con título y carpeta. Las de Code se abren desde la oficina; las de
+  Cowork no se pueden abrir por enlace (limitación de Claude Desktop), así que AgentOS trae Claude al frente y te dice cuál abrir.
+- Se quitó «Simular actividad»: creaba agentes que no se podían borrar. Los que dejó se limpian solos.
+- **Reportar fallas e ideas:** dile a Assistant «algo no funciona en AgentOS» o «tengo una idea». Prepara el reporte y te
+  da un enlace de GitHub ya llenado; tú lo revisas y pulsas «Submit new issue».
 
 ## Contacto
 

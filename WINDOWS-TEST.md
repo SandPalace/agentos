@@ -13,7 +13,7 @@ Anota en cada punto OK / falla + el mensaje exacto.
 - [ ] Con Node viejo (<22.13): mensaje claro.
 - [ ] Sin `claude`: muestra opciones winget/irm/npm y se detiene; con `-NoClaudeCli` sigue.
 - [ ] Paso 3: `npm ci` y `next build` terminan sin error en `web\`.
-- [ ] Paso 4: `claude plugin marketplace list` muestra `agentos`; `claude plugin list` muestra los 3 plugins.
+- [ ] Paso 4: `claude plugin marketplace list` muestra `agentos`; `claude plugin list` muestra los 6 plugins (agentos-core, marketing, ventas, cobranza, dirección y desarrollo).
 - [ ] Paso 5: `%APPDATA%\Claude\claude_desktop_config.json` tiene `mcpServers.agentos` con ruta absoluta a `node.exe` y existe `.agentos-backup`. Tus otros `mcpServers` siguen ahí. Reiniciar Claude Desktop: aparece la herramienta AgentOS.
 - [ ] Paso 5b: pregunta en español; `n` no toca `%USERPROFILE%\.claude\settings.json`; `S` agrega `mcp__plugin_agentos-core_agentos` y `env` con `AGENTOS_HOME`/`AGENTOS_ROOT` (+ `.agentos-backup`); `n` imprime el JSON `env` para agregarlo a mano. El `mcpServers.agentos` de Claude Desktop también lleva ese `env`. Con `$env:AGENTOS_ALLOW_MCP='no'|'yes'` no pregunta. Con `-NoSettings` lo omite.
 - [ ] Paso 6: pide usuario, contraseña oculta dos veces; rechaza < 8 caracteres o distintas. Crea `data\.env` dentro de la carpeta clonada; `icacls` muestra solo tu usuario. Segunda corrida: "Ya existe"; con `-ResetLogin` lo vuelve a pedir.

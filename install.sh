@@ -7,7 +7,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MKT="agentos"
-PLUGINS=(agentos-core marketing-team sales-team)
+PLUGINS=(agentos-core marketing-team sales-team collections-team executive-team dev-team)
 PORT="${AGENTOS_PORT:-4780}"
 # Todo vive dentro de esta carpeta: datos en <repo>/data y workspaces en <repo>/workspaces.
 # Si hay datos de una instalación anterior (~/.agentos, ~/AgentOS) y aún no existen los nuevos, el servidor

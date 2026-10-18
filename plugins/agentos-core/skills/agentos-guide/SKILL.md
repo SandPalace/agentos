@@ -49,6 +49,8 @@ When step 7 is done, summarize what they did and propose the next task.
 - **Which agent do I use for X?** Look in the roster (`agentos_roster`), including agents not in the active team, and recommend one; if it is unclear, offer two with the difference.
 - **Can I change an agent's name or face?** Yes, in Teams; the change is per team.
 - **Can I have several teams?** Yes; activate the one you want to see. The others keep their context.
+- **Something in AgentOS fails or I have an idea for it.** Prepare a report with `agentos_issue_report` (`bug` or
+  `feature`) and give the person the GitHub link it returns; they review it and press «Submit new issue». Nothing is sent without their click.
 - **I don't see a team I want.** If it is in the roster it is installed: Equipos tab, create or edit a team and add its agents. If it is not in the roster, its plugin has to be installed from AgentOS's marketplace.
 
 ## Never

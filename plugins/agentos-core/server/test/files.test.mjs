@@ -310,7 +310,7 @@ test('MCP file tools: write/read/list/move/delete, scoped by workspace, legacy p
   const viaEnv = mcpClient(port, tmpdir(), { AGENTOS_WORKSPACE: 'acme' })
   try {
     const list = await inAcme.rpc('tools/list')
-    assert.deepEqual(list.result.tools.map((t) => t.name).slice(-8, -3), ['agentos_file_write', 'agentos_file_read', 'agentos_file_list', 'agentos_file_delete', 'agentos_file_move'])
+    assert.deepEqual(list.result.tools.map((t) => t.name).filter((n) => n.startsWith('agentos_file_')), ['agentos_file_write', 'agentos_file_read', 'agentos_file_list', 'agentos_file_delete', 'agentos_file_move'])
     const wr = await inAcme.tool('agentos_file_write', { path: 'marketing/inmobiliaria/facts.md', content: '# Hechos\nCasas en San Nicolás ñ' })
     assert.equal(wr.data.created, true)
     assert.equal(wr.data.content_type, 'text/markdown; charset=utf-8')

@@ -256,6 +256,17 @@ export const MIGRATIONS = [
      OR id IN ('mcp:investigador', 'mcp:creativo', 'mcp:analista'));
    DELETE FROM outputs WHERE task_id IN (SELECT id FROM tasks WHERE title = 'Reporte de leads de la semana (demo)');
    DELETE FROM tasks WHERE title = 'Reporte de leads de la semana (demo)';`,
+  // · Reportes de la plataforma (bugs e ideas) que los agentes preparan con agentos_issue_report; la persona los envía a GitHub.
+  `CREATE TABLE IF NOT EXISTS issue_reports (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     workspace_id TEXT NOT NULL DEFAULT 'default',
+     kind TEXT NOT NULL,
+     title TEXT NOT NULL,
+     body TEXT NOT NULL,
+     url TEXT NOT NULL,
+     agent TEXT,
+     created_at INTEGER NOT NULL
+   );`,
 ]
 
 export function openDb(path = defaultDbPath()) {

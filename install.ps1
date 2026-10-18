@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Continue'
 
 $REPO = $PSScriptRoot
 $MKT = 'agentos'
-$PLUGINS = @('agentos-core', 'marketing-team', 'sales-team')
+$PLUGINS = @('agentos-core', 'marketing-team', 'sales-team', 'collections-team', 'executive-team', 'dev-team')
 $PORT = if ($env:AGENTOS_PORT) { $env:AGENTOS_PORT } else { '4780' }
 $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
 # Todo vive dentro de esta carpeta: datos en <repo>\data y workspaces en <repo>\workspaces.

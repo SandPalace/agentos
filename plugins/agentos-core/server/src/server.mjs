@@ -17,6 +17,7 @@ import { pathInside, isMain, agentosHome, defaultWorkspaceRoot } from './paths.m
 import { zipStream } from './zip.mjs'
 import { desktopCodeSessions } from './desktop-sessions.mjs'
 import { createAgentDefs } from './agent-defs.mjs'
+import { createIssues } from './issues.mjs'
 import { createWhatsApp } from './whatsapp.mjs'
 import { createAuth, loadCredentials, looseFiles, parseCookie, cookieHeader, clearCookieHeader } from './auth.mjs'
 
@@ -31,6 +32,7 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
   const store = createStore(db, { roster })
   const wa = createWhatsApp({ db, store, ...waOpt })
   const defs = createAgentDefs(defsOpt)
+  const issues = createIssues(db)
   const auth = createAuth(db, { enabled: !!authOpt, ...(typeof authOpt === 'object' ? authOpt : {}) })
   blobs ??= createBlobs({
     root: blobsRoot ?? mkdtempSync(join(tmpdir(), 'agentos-store-')),
@@ -291,6 +293,9 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
       if (m === 'PUT' && path.startsWith('/api/human/agent-defs/')) return send(res, 200, defs.put(id, { scope, root, content: (await readJson(req, 200_000)).content }))
       if (m === 'DELETE' && path.startsWith('/api/human/agent-defs/')) return send(res, 200, defs.remove(id, { scope, root }))
     }
+    // ── reportes de la plataforma: borrador + enlace de GitHub Issues prellenado (la persona lo envía) ──
+    if (m === 'POST' && path === '/api/issues') return send(res, 201, issues.report(await readJson(req, 50_000), ws))
+    if (m === 'GET' && path === '/api/issues') return send(res, 200, issues.list(url.searchParams.get('limit')))
     if (m === 'POST' && path === '/api/workspaces') {
       const w = store.createWorkspace(await readJson(req))
       blobs.ensureBucket(bucketOf(w.id)).catch(() => {})

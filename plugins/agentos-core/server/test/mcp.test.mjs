@@ -49,7 +49,7 @@ test('MCP: handshake, herramientas y flujo de una tarea con entregable', async (
     const list = await mcp.rpc('tools/list')
     assert.deepEqual(
       list.result.tools.map((t) => t.name),
-      ['agentos_task_create', 'agentos_task_update', 'agentos_task_deliver', 'agentos_task_list', 'agentos_lead_create', 'agentos_lead_update', 'agentos_lead_list', 'agentos_whatsapp_inbox', 'agentos_whatsapp_draft', 'agentos_overview', 'agentos_projects', 'agentos_roster', 'agentos_team_context', 'agentos_checkin', 'agentos_file_write', 'agentos_file_read', 'agentos_file_list', 'agentos_file_delete', 'agentos_file_move', 'agentos_profile_read', 'agentos_profile_update', 'agentos_profile_note'],
+      ['agentos_task_create', 'agentos_task_update', 'agentos_task_deliver', 'agentos_task_list', 'agentos_lead_create', 'agentos_lead_update', 'agentos_lead_list', 'agentos_whatsapp_inbox', 'agentos_whatsapp_draft', 'agentos_overview', 'agentos_projects', 'agentos_roster', 'agentos_team_context', 'agentos_checkin', 'agentos_file_write', 'agentos_file_read', 'agentos_file_list', 'agentos_file_delete', 'agentos_file_move', 'agentos_issue_report', 'agentos_profile_read', 'agentos_profile_update', 'agentos_profile_note'],
     )
 
     const ro = await mcp.tool('agentos_roster', { agent: 'coo' })

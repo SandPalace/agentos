@@ -243,6 +243,22 @@ const TOOLS = [
     },
   },
   {
+    name: 'agentos_issue_report',
+    description: 'Prepares a report about AgentOS itself (the platform: office web, server, installer, plugins, agents) for its maintainers: a bug or a feature request. Use it when the person says something in AgentOS is broken, confusing or missing, or asks to report/suggest something. Saves it locally and returns a prefilled GitHub issue link; give the link to the person, who reviews and submits it (you never submit). Not for problems in the person\'s own business. Never include passwords, tokens, client data or personal info.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', enum: ['bug', 'feature'], description: 'bug = something fails; feature = an idea or something missing' },
+        title: { type: 'string', description: 'Short summary in the person\'s language (max 120)' },
+        description: { type: 'string', description: 'What happens or what is needed, and why it matters (max 4000)' },
+        steps: { type: 'string', description: 'Bug only: numbered steps to reproduce' },
+        expected: { type: 'string', description: 'Bug only: what should happen' },
+        actual: { type: 'string', description: 'Bug only: what happens instead, with the exact error text if any' },
+      },
+      required: ['kind', 'title', 'description'],
+    },
+  },
+  {
     name: 'agentos_profile_read',
     description:
       "Reads the owner's profile (preferred name, about, personal goals, professional goals, current focus, work style) and the latest insights learned about them. Call it at the start of a conversation to adapt your tone and suggestions. Empty fields mean the person has not filled them in yet.",
@@ -335,6 +351,8 @@ async function callTool(name, a = {}) {
       const all = await api('GET', '/api/tasks', undefined, ws)
       return a.status ? all.filter((t) => t.status === a.status) : all
     }
+    case 'agentos_issue_report':
+      return api('POST', '/api/issues', { ...a, agent: process.env.AGENTOS_AGENT || a.agent || null }, ws)
     case 'agentos_lead_create':
       return api('POST', '/api/leads', a, ws)
     case 'agentos_lead_update': {

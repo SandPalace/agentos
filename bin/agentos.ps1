@@ -228,7 +228,11 @@ function Invoke-Update {
   if (-not $ok) { Say 'Fallo la compilacion.'; exit 1 }
   if ((Get-Command claude -ErrorAction SilentlyContinue) -and $env:AGENTOS_SKIP_CLAUDE -ne '1') {
     & claude plugin marketplace update agentos
-    foreach ($p in @('agentos-core', 'marketing-team', 'sales-team')) { & claude plugin update "$p@agentos" }
+    # Instala los equipos que falten (p. ej. Direccion con CFO y COO) y actualiza los que ya estan.
+    $installed = (& claude plugin list 2>$null) -join "`n"
+    foreach ($p in @('agentos-core', 'marketing-team', 'sales-team', 'collections-team', 'executive-team', 'dev-team')) {
+      if ($installed -match [regex]::Escape("$p@agentos")) { & claude plugin update "$p@agentos" } else { & claude plugin install "$p@agentos" }
+    }
   }
   Say 'Listo. Reinicia tus sesiones de Claude para cargar los cambios.'
   if ($wasWeb) { Invoke-Start }
