@@ -1,0 +1,22 @@
+{
+  "id": "finance-team",
+  "name": "Finanzas",
+  "description": "Operational and personal finance team for Mexican SMBs and individuals: controller (lead), financial analyst, tax compliance and personal finance advisor. Keeps a lightweight revenue ledger (sales, abonos, IVA by treatment, CFDI export data), and prepares financial statements, monthly accountant packages, SAT obligation calendars, financial ratios, project evaluation (NPV/IRR), break-even and pricing, household budgets and debt payoff plans. Tax content is indicative and always validated with the accountant.",
+  "agents": [
+    "controller",
+    "financial-analyst",
+    "personal-finance-advisor",
+    "tax-compliance"
+  ],
+  "skills": [
+    "accountant-handoff",
+    "break-even-pricing",
+    "debt-payoff-plan",
+    "financial-ratios",
+    "financial-statements",
+    "home-budget",
+    "project-evaluation",
+    "revenue-ledger",
+    "sat-tax-calendar"
+  ]
+}

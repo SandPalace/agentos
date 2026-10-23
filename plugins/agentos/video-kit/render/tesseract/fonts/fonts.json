@@ -1,0 +1,93 @@
+{
+  "note": "Open fonts used by the video templates. Not stored in the repo: run fetch-fonts.mjs (see README.md).",
+  "fonts": [
+    {
+      "dir": "inter",
+      "fontsource": "inter",
+      "license": {
+        "file": "OFL.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt"
+      },
+      "files": [
+        { "file": "Inter-Regular.ttf", "weight": 400, "style": "normal" },
+        { "file": "Inter-Medium.ttf", "weight": 500, "style": "normal" },
+        { "file": "Inter-SemiBold.ttf", "weight": 600, "style": "normal" },
+        { "file": "Inter-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    },
+    {
+      "dir": "dmsans",
+      "fontsource": "dm-sans",
+      "license": {
+        "file": "OFL.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/OFL.txt"
+      },
+      "files": [
+        { "file": "DMSans-Medium.ttf", "weight": 500, "style": "normal" },
+        { "file": "DMSans-SemiBold.ttf", "weight": 600, "style": "normal" },
+        { "file": "DMSans-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    },
+    {
+      "dir": "spacegrotesk",
+      "fontsource": "space-grotesk",
+      "license": {
+        "file": "OFL.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/OFL.txt"
+      },
+      "files": [
+        { "file": "SpaceGrotesk-Light.ttf", "weight": 300, "style": "normal" },
+        {
+          "file": "SpaceGrotesk-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        { "file": "SpaceGrotesk-Medium.ttf", "weight": 500, "style": "normal" },
+        { "file": "SpaceGrotesk-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    },
+    {
+      "dir": "spacemono",
+      "fontsource": "space-mono",
+      "license": {
+        "file": "OFL.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/OFL.txt"
+      },
+      "files": [
+        { "file": "SpaceMono-Regular.ttf", "weight": 400, "style": "normal" },
+        { "file": "SpaceMono-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    },
+    {
+      "dir": "instrumentserif",
+      "fontsource": "instrument-serif",
+      "license": {
+        "file": "OFL.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/OFL.txt"
+      },
+      "files": [
+        {
+          "file": "InstrumentSerif-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "InstrumentSerif-Italic.ttf",
+          "weight": 400,
+          "style": "italic"
+        }
+      ]
+    },
+    {
+      "dir": "luckiestguy",
+      "fontsource": "luckiest-guy",
+      "license": {
+        "file": "LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/google/fonts/main/apache/luckiestguy/LICENSE.txt"
+      },
+      "files": [
+        { "file": "LuckiestGuy-Regular.ttf", "weight": 400, "style": "normal" }
+      ]
+    }
+  ]
+}

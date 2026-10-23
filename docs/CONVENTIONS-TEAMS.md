@@ -1,14 +1,23 @@
-# Conventions for writing agent teams (AgentOS plugins)
+# Conventions for writing agent teams (AgentOS)
 
-Each team is a plugin in `plugins/<name>-team/`:
+AgentOS ships ONE Claude plugin, `plugins/agentos/`. A **team** is a folder in `teams/` that groups agents and skills
+living in the plugin's shared `agents/` and `skills/` folders. Teams are a feature of the app (Equipos tab), not plugins.
 
 ```
-plugins/<name>-team/
-  .claude-plugin/plugin.json      { name, version "0.1.0", description, author { name: "Mty Agentic Labs" } }
-  agents/<id>.md                  one file per agent (kebab-case English id = roster id)
-  skills/<skill>/SKILL.md         one directory per skill
-  SOURCE.md                       where it came from (an earlier internal project, written from scratch...) and what was adapted
+plugins/agentos/
+  agents/<id>.md                  one file per agent (kebab-case English id = roster id, unique across ALL teams)
+  skills/<skill>/SKILL.md         one directory per skill (unique across all teams); shared knowledge as skills/<name>.md
+  teams/<team-id>/team.json       { "id": "<team-id>", "name": "<Spanish UI name>", "description": "...",
+                                    "agents": ["<id>", ...], "skills": ["<skill>", ...], "optional_skills": [...]? }
+  teams/<team-id>/canvas-ideas.md Canvas artifact ideas per agent (template, source, what the owner validates)
+  teams/<team-id>/SOURCE.md       where it came from (an earlier internal project, written from scratch...) and what was adapted
+  teams/<team-id>/docs/           team docs (optional)
 ```
+
+Every agent and skill belongs to exactly one team, and every id listed in a `team.json` exists: `node scripts/build-roster.mjs`
+refuses to build the roster otherwise. `optional_skills` may be missing on disk (owner-local, not redistributable).
+New team: add `teams/<team-id>/team.json`, the agents/skills, a group with the same id and name in `web/lib/roster.ts`,
+then run the roster build and tests. Team ids are stored in workspace data: never rename one.
 
 ## Language policy
 Everything you write for the model — frontmatter, instructions, file names, field names, statuses — is **English**.
@@ -22,7 +31,7 @@ Instructions, file names and field names stay in English; deliverable content is
 ## Agents (`agents/<id>.md`)
 Frontmatter: `name` (= file id), `description` (when to use it, one or two sentences), `model` (`opus` for the one
 who directs, `sonnet` for the one who executes), `tools`. **`tools` is a closed allowlist and must include `Skill`
-and `mcp__plugin_agentos-core_agentos`**, plus the minimum else it needs.
+and `mcp__plugin_agentos_agentos`**, plus the minimum else it needs.
 Body, second person ("You are..."), with these sections:
 1. Who you are and what you deliver (2–4 lines).
 2. **Rules that override your judgment** (3–5 hard rules, each with its why).
@@ -41,6 +50,21 @@ Target length: 60–110 lines. Concrete, no filler.
 - If you did not receive team context, ask for it with `agentos_team_context` (your id).
 - Anything that leaves the building (email, message, post, payment, charge) is a **draft** the person reviews and
   sends; you never send it.
+- Canvas: before publishing an artifact, use the skill `agentos:canvas-artifacts` and pick an idea from this
+  team's `teams/<team-id>/canvas-ideas.md` (at the root of the `agentos` plugin).
+
+### Canvas (artifacts the person reviews)
+- **When:** anything the person must look at and validate before it is used: drafts of posts, quotes, reports,
+  designs, landing pages, tables. Not for intermediate notes or code projects.
+- **How:** use the skill `agentos:canvas-artifacts` before publishing and pick an idea from the team's
+  `teams/<team-id>/canvas-ideas.md`; then `agentos_artifact_publish` (`agent` = your id, `title`, a workspace file `path` or inline
+  `{name, content}`, optional `task_id`; html, markdown, image, pdf, csv or text). Board (`scope_type`): `agent` (default,
+  yours), `team` or `workspace` (the whole project).
+- **Fixes:** publish again with `artifact_id` (a new version; nothing is overwritten). At start, and whenever a checkin
+  returns `canvas_feedback`, run `agentos_artifact_list` with `needs_action: true` and your `agent`, read the thread with
+  `agentos_artifact_get` and answer with `agentos_artifact_comment` if needed.
+- **Only the person approves or requests changes.** An approved artifact does not finish its task: deliver the task as
+  usual (`agentos_task_deliver` → `review`).
 
 ## Skills (`skills/<skill>/SKILL.md`)
 Frontmatter: `name` (= directory), `description` (what it does and WHEN to use it — enough for Claude to pick it),

@@ -1,10 +1,11 @@
 # AgentOS
 
 Una oficina virtual donde trabajan tus equipos de agentes de IA. Contratas un equipo (marketing, ventas, cobranza,
-dirección, desarrollo), los agentes trabajan dentro de Claude (Desktop, Cowork o Code) y tú los ves moverse en una
+dirección, finanzas, desarrollo), los agentes trabajan dentro de Claude (Desktop, Cowork o Code) y tú los ves moverse en una
 oficina en 3D, revisas lo que entregan y apruebas las tareas.
 
-- **Plugins de Claude**: agentes, skills y comandos listos para usar (`plugins/`).
+- **Un plugin de Claude, `agentos`**: todos los agentes y skills (`plugins/agentos/`). Los equipos se arman dentro de la
+  app, en la pestaña **Equipos**.
 - **Servidor local**: guarda tareas y entregables en tu computadora, dentro de la carpeta de AgentOS (`data/` y `workspaces/`). Tus datos no salen de tu máquina.
 - **Oficina web**: `http://localhost:4781`, con usuario y contraseña propios.
 
@@ -18,44 +19,49 @@ Lee **[INSTALL.md](INSTALL.md)** (paso a paso, en español).
 
 Abre Claude (Code en la terminal o una sesión de Code en Claude Desktop) **en la carpeta de AgentOS** y pídele:
 
-> Actualiza AgentOS a la versión nueva: haz `git pull` y luego sigue la sección «Actualizar AgentOS» de CLAUDE.md.
+> Actualiza AgentOS a la versión nueva siguiendo la sección «Update» de CLAUDE.md.
 
-Claude baja la versión, instala lo que falte (incluido el equipo de Dirección con CEO, CFO y COO), pasa tus datos a esta
-carpeta si estaban en `~/.agentos` y `~/AgentOS`, quita lo que la versión vieja había instalado a nivel sistema y te pide
-confirmar antes de borrar cualquier cosa.
-
-Si prefieres hacerlo a mano (Mac/Linux; en Windows usa `.\bin\agentos.cmd`):
+O hazlo a mano (Mac/Linux; en Windows usa `.\bin\agentos.cmd`):
 
 ```bash
 ./bin/agentos stop
 git pull --ff-only
-./bin/agentos update                                # dependencias, compilación y plugins
-node scripts/migrate-to-project-folder.mjs          # solo si existen ~/.agentos o ~/AgentOS: muestra el plan
-node scripts/migrate-to-project-folder.mjs --yes    # lo hace (deja respaldo *.migrado-<fecha>)
+./bin/agentos update     # dependencias, compilación y el plugin agentos (migra solo desde los 7 plugins viejos)
 ./bin/agentos start
 ```
 
-Después cierra y abre Claude Desktop. Qué cambió en esta versión:
+Después cierra y abre Claude Desktop. Puedes repetir `./bin/agentos update` las veces que quieras: no rompe nada.
 
-- **Todo vive en esta carpeta:** `data/` (base de datos, archivos, contraseña, logs) y `workspaces/` (una carpeta por
-  workspace). Ninguna se sube a GitHub. Ya no hay comando global: usa `./bin/agentos`.
-- **Equipo de Dirección** con CEO, CFO y el nuevo COO (operación diaria).
-- **Sesiones de Claude** divididas en Code y Cowork, con título y carpeta. Las de Code se abren desde la oficina; las de
-  Cowork no se pueden abrir por enlace (limitación de Claude Desktop), así que AgentOS trae Claude al frente y te dice cuál abrir.
-- Se quitó «Simular actividad»: creaba agentes que no se podían borrar. Los que dejó se limpian solos.
-- **Reportar fallas e ideas:** dile a Assistant «algo no funciona en AgentOS» o «tengo una idea». Prepara el reporte y te
-  da un enlace de GitHub ya llenado; tú lo revisas y pulsas «Submit new issue».
+## Si algo falla
 
-## Contacto
+Abre Claude en la carpeta de AgentOS y dile:
 
-AlgoLab · hello@algolab.academy
+> Revisa y repara mi AgentOS.
 
-## Material de clase
+Claude sigue el manual de `CLAUDE.md` de esta carpeta: revisa el servidor, la web, el plugin, los permisos y Claude
+Desktop, te dice qué encontró y lo arregla (te pregunta antes de borrar o cambiar algo). Si es una falla de AgentOS,
+prepara un reporte para GitHub y tú lo envías.
 
-Las presentaciones de cada sesión están en `clases/`. Ábrelas en tu navegador (doble clic en `index.html`) y avanza con las flechas ← →.
+## Qué hay de nuevo
 
-| Sesión | Archivo |
-|---|---|
-| 3 · Captación y atención de clientes (equipo de ventas) | `clases/sesion-03-ventas/index.html` |
+- **Un solo plugin.** Antes eran 7 plugins (uno por equipo); ahora es uno, `agentos`, con todos los agentes. Los equipos
+  son parte de la app: los armas en **Equipos**. `./bin/agentos update` quita los 7 viejos, instala el nuevo y corrige
+  los permisos y Claude Desktop por ti.
+- **Canvas e Inicio.** En la pestaña **Canvas** tus agentes publican lo que necesitan que revises (reportes, tableros,
+  propuestas, creativos): comentas, apruebas o pides cambios, y suben la versión nueva. Cada proyecto tiene su
+  **Inicio**: pídele a cualquier agente «arma el inicio de este proyecto». Traen ideas y plantillas para no empezar de cero.
+- **Finanzas:** contralor, analista financiero, cumplimiento fiscal y finanzas personales, con un libro de ingresos
+  (ventas, abonos, IVA y datos para facturar), estados financieros, paquete para tu contador y calendario del SAT.
+- **WhatsApp con OpenWA (opcional):** pídele al equipo de ventas «conecta mi WhatsApp con OpenWA». Corre en tu
+  computadora; los agentes leen tus chats y solo envían cuando tú apruebas cada mensaje.
+- **Vista oficina opcional:** la app abre en la vista normal; la oficina 3D se prende con el botón «Vista oficina».
+- **Repo genérico:** el repositorio público trae solo el producto (sin material de clase) y ahora vive en
+  `SandPalace/agentos`; tu clon viejo sigue funcionando (GitHub redirige).
+
+## Dudas y fallas
+
+Abre un issue en este repositorio (o pídeselo a Assistant: «algo no funciona en AgentOS»).
+
+## Créditos
 
 Créditos y licencias de terceros: [`CREDITS.md`](CREDITS.md).

@@ -20,7 +20,9 @@ $ErrorActionPreference = 'Continue'
 
 $REPO = $PSScriptRoot
 $MKT = 'agentos'
-$PLUGINS = @('agentos-core', 'marketing-team', 'sales-team', 'collections-team', 'executive-team', 'dev-team')
+$PLUGIN = 'agentos'   # un solo plugin con todos los agentes y skills; los equipos se arman en la app
+# Marca para web\package.json (postinstall): el instalador migra los plugins el mismo.
+$env:AGENTOS_LAUNCHER = '2'
 $PORT = if ($env:AGENTOS_PORT) { $env:AGENTOS_PORT } else { '4780' }
 $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
 # Todo vive dentro de esta carpeta: datos en <repo>\data y workspaces en <repo>\workspaces.
@@ -120,8 +122,8 @@ try {
 } finally { Pop-Location -ErrorAction SilentlyContinue }
 Ok 'Web compilada'
 
-# 4. Plugins
-Step '4/7 Registrando los plugins en Claude Code'
+# 4. Plugin
+Step '4/7 Registrando el plugin agentos en Claude Code'
 if ($DO_CLI -and $HAVE_CLAUDE) {
   $list = (& claude plugin marketplace list 2>&1 | Out-String)
   if ($list -match [regex]::Escape($MKT)) {
@@ -132,15 +134,9 @@ if ($DO_CLI -and $HAVE_CLAUDE) {
     if ($LASTEXITCODE -ne 0) { Die 'No pude registrar el marketplace.' }
     Ok 'Marketplace registrado'
   }
-  foreach ($p in $PLUGINS) {
-    & claude plugin install "$p@$MKT" *> $null
-    if ($LASTEXITCODE -eq 0) { Ok "$p instalado" }
-    else {
-      $inst = (& claude plugin list 2>&1 | Out-String)
-      if ($inst -match [regex]::Escape("$p@$MKT")) { Ok "$p ya estaba instalado" }
-      else { Warn "No pude instalar $p (pruebalo a mano: claude plugin install $p@$MKT)" }
-    }
-  }
+  # Quita los 7 plugins de versiones anteriores (si los hay) e instala o actualiza agentos@agentos.
+  & $NODE_BIN (Join-Path $REPO 'scripts\migrate-plugins.mjs') --plugins-only
+  if ($LASTEXITCODE -ne 0) { Warn "No pude dejar listo $PLUGIN@$MKT (pruebalo a mano: claude plugin install $PLUGIN@$MKT)" }
 } else { Ok 'Omitido' }
 
 # 5. Claude Desktop
@@ -176,7 +172,7 @@ c.mcpServers.agentos = e;
 fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n');
 '@
   $env:NODE_BIN = $NODE_BIN
-  $env:MCP = Join-Path $REPO 'plugins\agentos-core\server\src\mcp.mjs'
+  $env:MCP = Join-Path $REPO 'plugins\agentos\server\src\mcp.mjs'
   $env:PORT = $PORT
   $env:LEGACY = if ($LEGACY) { '1' } else { '0' }
   foreach ($dir in $cfgDirs) {
@@ -229,16 +225,19 @@ if (fs.existsSync(f)) {
   if (t) { try { c = JSON.parse(t); } catch (e) { process.exit(3); } }
 }
 if (c === null || typeof c !== 'object' || Array.isArray(c)) process.exit(3);
-const rule = 'mcp__plugin_agentos-core_agentos';
+const rule = 'mcp__plugin_agentos_agentos';
+const old = 'mcp__plugin_agentos-core_agentos';
 c.permissions = c.permissions && typeof c.permissions === 'object' ? c.permissions : {};
 if (!Array.isArray(c.permissions.allow)) c.permissions.allow = [];
+const hadOld = c.permissions.allow.includes(old);
 const env = c.env && typeof c.env === 'object' && !Array.isArray(c.env) ? c.env : {};
 const legacy = process.env.LEGACY === '1';
 const hasRule = c.permissions.allow.includes(rule);
 const hasEnv = legacy || (env.AGENTOS_HOME === process.env.AGENTOS_HOME && env.AGENTOS_ROOT === process.env.AGENTOS_ROOT);
-if (hasRule && hasEnv) { console.log('    OK  La regla y las rutas ya estaban en ' + f); process.exit(0); }
+if (hasRule && hasEnv && !hadOld) { console.log('    OK  La regla y las rutas ya estaban en ' + f); process.exit(0); }
 if (fs.existsSync(f)) fs.copyFileSync(f, f + '.agentos-backup');
-if (!hasRule) c.permissions.allow.push(rule);
+c.permissions.allow = c.permissions.allow.filter((r) => r !== old);
+if (!c.permissions.allow.includes(rule)) c.permissions.allow.push(rule);
 if (!legacy) { env.AGENTOS_HOME = process.env.AGENTOS_HOME; env.AGENTOS_ROOT = process.env.AGENTOS_ROOT; c.env = env; }
 fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n');
 console.log('    OK  Agregue permissions.allow: ' + rule + ' y env AGENTOS_HOME/AGENTOS_ROOT en ' + f + ' (respaldo: ' + f + '.agentos-backup)');

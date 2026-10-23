@@ -53,6 +53,8 @@ export interface AgentOSState {
   leads: Lead[]
   /** Increments on every WhatsApp SSE event (`wa_message` / `wa_draft`): components refetch when it changes. */
   waTick: number
+  /** Increments on every Canvas SSE event (`canvas`): boards and the detail refetch when it changes. */
+  canvasTick: number
   teams: Team[]
   coo: SystemAgent | null
   conn: Conn
@@ -84,6 +86,7 @@ export function useAgentOSState(): AgentOSState {
   const [leads, setLeads] = useState<Lead[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [waTick, setWaTick] = useState(0)
+  const [canvasTick, setCanvasTick] = useState(0)
   const [coo, setCoo] = useState<SystemAgent | null>(null)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [conn, setConn] = useState<Conn>('connecting')
@@ -153,6 +156,7 @@ export function useAgentOSState(): AgentOSState {
       on('lead_deleted', (d) => setLeads((l) => l.filter((x) => x.id !== d.id)))
       on('wa_message', () => setWaTick((n) => n + 1))
       on('wa_draft', () => setWaTick((n) => n + 1))
+      on('canvas', () => setCanvasTick((n) => n + 1))
       on('files', (d: FilesEvent) => fileListeners.current.forEach((fn) => fn(d)))
       on('workspaces', (d) => {
         const list: Workspace[] = Array.isArray(d) ? d : d?.workspaces ?? []
@@ -209,7 +213,7 @@ export function useAgentOSState(): AgentOSState {
   }, [reloadWorkspaces, setWorkspace])
 
   const workspace = workspaces.find((w) => w.id === workspaceId) ?? null
-  return { sessions, tasks, leads, waTick, teams, coo, conn, ready, workspaces, workspace, workspaceId, setWorkspace, createWorkspace, renameWorkspace, archiveWorkspace, storage, storageError, refreshStorage, subscribeFiles }
+  return { sessions, tasks, leads, waTick, canvasTick, teams, coo, conn, ready, workspaces, workspace, workspaceId, setWorkspace, createWorkspace, renameWorkspace, archiveWorkspace, storage, storageError, refreshStorage, subscribeFiles }
 }
 
 export function useAgentOS(): AgentOSState {

@@ -7,7 +7,9 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MKT="agentos"
-PLUGINS=(agentos-core marketing-team sales-team collections-team executive-team dev-team)
+PLUGIN="agentos"   # un solo plugin con todos los agentes y skills; los equipos se arman en la app
+# Marca para web/package.json (postinstall): el instalador migra los plugins él mismo.
+export AGENTOS_LAUNCHER=2
 PORT="${AGENTOS_PORT:-4780}"
 # Todo vive dentro de esta carpeta: datos en <repo>/data y workspaces en <repo>/workspaces.
 # Si hay datos de una instalación anterior (~/.agentos, ~/AgentOS) y aún no existen los nuevos, el servidor
@@ -77,8 +79,8 @@ step "3/7 Instalando y compilando la oficina web (tarda unos minutos)"
 ) || die "Falló la instalación o compilación de la web. Revisa tu conexión a internet y corre ./install.sh otra vez."
 ok "Web compilada"
 
-# 4. Plugins
-step "4/7 Registrando los plugins en Claude Code"
+# 4. Plugin
+step "4/7 Registrando el plugin agentos en Claude Code"
 if [ "$DO_CLI" = 1 ] && [ "$HAVE_CLAUDE" = 1 ]; then
   if claude plugin marketplace list 2>/dev/null | grep -q "$MKT"; then
     claude plugin marketplace update "$MKT" >/dev/null 2>&1 || true
@@ -87,10 +89,8 @@ if [ "$DO_CLI" = 1 ] && [ "$HAVE_CLAUDE" = 1 ]; then
     claude plugin marketplace add "$REPO" || die "No pude registrar el marketplace."
     ok "Marketplace registrado"
   fi
-  for p in "${PLUGINS[@]}"; do
-    if claude plugin install "$p@$MKT" >/dev/null 2>&1; then ok "$p instalado"
-    else claude plugin list 2>/dev/null | grep -q "$p@$MKT" && ok "$p ya estaba instalado" || warn "No pude instalar $p (pruébalo a mano: claude plugin install $p@$MKT)"; fi
-  done
+  # Quita los 7 plugins de versiones anteriores (si los hay) e instala o actualiza agentos@agentos.
+  node "$REPO/scripts/migrate-plugins.mjs" --plugins-only || warn "No pude dejar listo $PLUGIN@$MKT (pruébalo a mano: claude plugin install $PLUGIN@$MKT)"
 else ok "Omitido"; fi
 
 # 5. Claude Desktop
@@ -100,7 +100,7 @@ if [ "$DO_DESKTOP" = 1 ] && [ "$OS" = Darwin ]; then
   mkdir -p "$CFG_DIR"
   CFG="$CFG_DIR/claude_desktop_config.json"
   [ -f "$CFG" ] && cp "$CFG" "$CFG.agentos-backup" 
-  if CFG="$CFG" LEGACY="$LEGACY" NODE_BIN="$NODE_BIN" MCP="$REPO/plugins/agentos-core/server/src/mcp.mjs" PORT="$PORT" node -e '
+  if CFG="$CFG" LEGACY="$LEGACY" NODE_BIN="$NODE_BIN" MCP="$REPO/plugins/agentos/server/src/mcp.mjs" PORT="$PORT" node -e '
     const fs=require("fs");const f=process.env.CFG;let c={};
     if(fs.existsSync(f)){const t=fs.readFileSync(f,"utf8").trim();if(t){try{c=JSON.parse(t)}catch(e){console.error("JSON inválido");process.exit(3)}}}
     c.mcpServers=c.mcpServers||{};
@@ -147,16 +147,18 @@ if [ "$DO_SETTINGS" = 1 ]; then
     const fs=require("fs");const f=process.env.SET;let c={};
     if(fs.existsSync(f)){const t=fs.readFileSync(f,"utf8").trim();if(t){try{c=JSON.parse(t)}catch(e){process.exit(3)}}}
     if(c===null||typeof c!=="object"||Array.isArray(c))process.exit(3);
-    const rule="mcp__plugin_agentos-core_agentos";
+    const rule="mcp__plugin_agentos_agentos";const old="mcp__plugin_agentos-core_agentos";
     c.permissions=c.permissions&&typeof c.permissions==="object"?c.permissions:{};
     if(!Array.isArray(c.permissions.allow))c.permissions.allow=[];
+    const hadOld=c.permissions.allow.includes(old);
     const env=c.env&&typeof c.env==="object"&&!Array.isArray(c.env)?c.env:{};
     const hasRule=c.permissions.allow.includes(rule);
     const legacy=process.env.LEGACY==="1";
     const hasEnv=legacy||(env.AGENTOS_HOME===process.env.AGENTOS_HOME&&env.AGENTOS_ROOT===process.env.AGENTOS_ROOT);
-    if(hasRule&&hasEnv){console.log("    OK  La regla y las rutas ya estaban en "+f);process.exit(0)}
+    if(hasRule&&hasEnv&&!hadOld){console.log("    OK  La regla y las rutas ya estaban en "+f);process.exit(0)}
     if(fs.existsSync(f))fs.copyFileSync(f,f+".agentos-backup");
-    if(!hasRule)c.permissions.allow.push(rule);
+    c.permissions.allow=c.permissions.allow.filter((r)=>r!==old);
+    if(!c.permissions.allow.includes(rule))c.permissions.allow.push(rule);
     if(!legacy){env.AGENTOS_HOME=process.env.AGENTOS_HOME;env.AGENTOS_ROOT=process.env.AGENTOS_ROOT;c.env=env}
     fs.writeFileSync(f,JSON.stringify(c,null,2)+"\n");
     console.log("    OK  Agregué permissions.allow: "+rule+" y env AGENTOS_HOME/AGENTOS_ROOT en "+f+" (respaldo: "+f+".agentos-backup)");'; then :

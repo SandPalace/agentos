@@ -1,6 +1,0 @@
-{
-  "name": "agentos-core",
-  "version": "0.2.1",
-  "description": "AgentOS core: hooks that report the status of each Claude session, a local server (SQLite + SSE), an MCP for tasks and deliverables, and Assistant (id `coo`): the default agent that guides the experience and routes work to the teams.",
-  "author": { "name": "Mty Agentic Labs" }
-}

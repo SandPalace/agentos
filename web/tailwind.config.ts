@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss'
 
-// Design System de Mty Agentic Labs: Spectrum, Poppins + Space Grotesk, tarjetas blancas con borde, radio 2px.
+// Design System de AgentOS: Spectrum, Poppins + Space Grotesk, tarjetas blancas con borde, radio 2px.
 export default {
   darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],

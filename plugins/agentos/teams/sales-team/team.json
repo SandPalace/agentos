@@ -1,0 +1,23 @@
+{
+  "id": "sales-team",
+  "name": "Ventas",
+  "description": "Sales team for Mexican SMBs: sets up your offer and qualification rubric, prepares replies to incoming messages (pasted or from your WhatsApp inbox), finds businesses on Google Maps, scores prospects, keeps a Leads Kanban and drafts follow-ups. The agent prepares, you send; with the optional OpenWA setup, agents may send after you approve each message.",
+  "agents": [
+    "follow-up",
+    "lead-qualifier",
+    "proposal-writer",
+    "sales-lead"
+  ],
+  "skills": [
+    "commercial-proposal",
+    "follow-up-sequence",
+    "google-maps-prospecting",
+    "objection-handling",
+    "openwa-setup",
+    "pipeline-report",
+    "prepared-replies",
+    "qualify-lead",
+    "sales-setup",
+    "whatsapp-inbox"
+  ]
+}

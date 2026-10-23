@@ -1,0 +1,2 @@
+{ "name": "openwa-mcp", "version": "1.0.0", "type": "module", "private": true,
+  "dependencies": { "@modelcontextprotocol/sdk": "1.29.0", "zod": "4.4.3" } }

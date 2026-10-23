@@ -1,25 +1,24 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROSTERS, ROSTER_AGENTS } from './roster.ts'
 
-const PLUGINS = join(import.meta.dirname, '..', '..', 'plugins')
+const PLUGIN = join(import.meta.dirname, '..', '..', 'plugins', 'agentos')
 
 test('los ids de agentes son únicos en todo el roster', () => {
   const ids = ROSTER_AGENTS.map((a) => a.id)
   assert.equal(new Set(ids).size, ids.length)
 })
 
-test('cada grupo del roster coincide con los agentes de su plugin', () => {
+test('cada grupo del roster coincide con su equipo (plugins/agentos/teams/<id>/team.json)', () => {
+  const teams = readdirSync(join(PLUGIN, 'teams')).filter((d) => existsSync(join(PLUGIN, 'teams', d, 'team.json')))
+  assert.deepEqual([...ROSTERS.map((g) => g.id)].sort(), teams.sort(), 'grupos del roster ≠ equipos del plugin')
   for (const g of ROSTERS) {
-    const dir = join(PLUGINS, g.id, 'agents')
-    assert.ok(existsSync(dir), `falta el plugin ${g.id}`)
-    const files = readdirSync(dir).filter((f) => f.endsWith('.md')).map((f) => f.replace(/\.md$/, ''))
-    for (const a of g.agents) assert.ok(files.includes(a.id), `${g.id}: no existe agents/${a.id}.md`)
-    // un agente nuevo en el plugin debe estar en el roster
-    const missing = files.filter((f) => !g.agents.some((a) => a.id === f))
-    assert.deepEqual(missing, [], `${g.id}: agentes del plugin que no están en el roster`)
+    const team = JSON.parse(readFileSync(join(PLUGIN, 'teams', g.id, 'team.json'), 'utf8')) as { name: string; agents: string[] }
+    assert.equal(team.name, g.name, `${g.id}: el nombre del team.json debe ser el del roster`)
+    for (const a of g.agents) assert.ok(existsSync(join(PLUGIN, 'agents', `${a.id}.md`)), `${g.id}: no existe agents/${a.id}.md`)
+    assert.deepEqual([...g.agents.map((a) => a.id)].sort(), [...team.agents].sort(), `${g.id}: agentes del roster ≠ agentes del team.json`)
   }
 })
 

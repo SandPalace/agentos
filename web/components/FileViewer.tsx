@@ -100,7 +100,8 @@ function CsvTable({ text, delimiter }: { text: string; delimiter: string }) {
   )
 }
 
-function Preview({ file, rev = 0 }: { file: ViewerFile; rev?: number }) {
+/** `frameClass`: alto del iframe de html/pdf (por defecto 70vh; el Inicio lo estira a la pantalla). */
+export function Preview({ file, rev = 0, frameClass = 'h-[70vh]' }: { file: ViewerFile; rev?: number; frameClass?: string }) {
   const kind = previewKind(file.contentType, file.name)
   const [text, setText] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -120,8 +121,8 @@ function Preview({ file, rev = 0 }: { file: ViewerFile; rev?: number }) {
   }, [file.url, needsText, rev])
 
   if (kind === 'image') return <div className="flex min-h-[200px] items-center justify-center bg-bg p-3"><img key={rev} src={file.url} alt={file.name} className="max-h-[70vh] max-w-full object-contain" /></div>
-  if (kind === 'html') return <iframe key={rev} title={file.name} src={file.url} sandbox="allow-scripts" referrerPolicy="no-referrer" className="h-[70vh] w-full border-0 bg-white" />
-  if (kind === 'pdf') return <iframe title={file.name} src={file.url} className="h-[70vh] w-full border-0 bg-white" />
+  if (kind === 'html') return <iframe key={rev} title={file.name} src={file.url} sandbox="allow-scripts" referrerPolicy="no-referrer" className={`${frameClass} w-full border-0 bg-white`} />
+  if (kind === 'pdf') return <iframe title={file.name} src={file.url} className={`${frameClass} w-full border-0 bg-white`} />
   if (kind === 'none') return <p className="p-5 text-sm text-muted">No hay vista previa para este tipo de archivo. Puedes descargarlo.</p>
   if (err) return <p role="alert" className="p-5 text-sm text-red">{err}</p>
   if (text === null) return <p className="p-5 text-sm text-muted" role="status">Cargando…</p>

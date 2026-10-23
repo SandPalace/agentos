@@ -1,0 +1,34 @@
+{
+  "id": "marketing-team",
+  "name": "Marketing",
+  "description": "Agentic marketing team: CMO, researcher, creative (with code-based video editing) and analyst, with 18 skills (sourced facts, calendar, scripts, prompts, video, report).",
+  "agents": [
+    "analyst",
+    "cmo",
+    "creative",
+    "researcher"
+  ],
+  "skills": [
+    "content-calendar",
+    "content-script",
+    "fact-check",
+    "gsap-motion",
+    "html-report",
+    "image-prompt",
+    "market-research",
+    "meta-connector",
+    "metrics-sqlite",
+    "motion-video",
+    "onboarding",
+    "publish-package",
+    "read-documents",
+    "sound-design",
+    "talking-head-edit",
+    "video-prompt",
+    "workspace-audit",
+    "workspace-guide"
+  ],
+  "optional_skills": [
+    "tesseract-motion"
+  ]
+}

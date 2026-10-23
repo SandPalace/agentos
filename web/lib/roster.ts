@@ -1,8 +1,8 @@
 import type { Member } from './team'
 
-// Roster: los agentes disponibles para armar equipos, agrupados por el plugin que los trae.
-// `id` del grupo = nombre del plugin en plugins/; `id` de cada agente = nombre del archivo en agents/.
-// roster.test.ts comprueba que ambos coincidan con los plugins.
+// Roster: los agentes disponibles para armar equipos, agrupados por equipo. Todo viene en un solo plugin (`agentos`):
+// `id` del grupo = carpeta en plugins/agentos/teams/<id>/team.json; `id` de cada agente = archivo en plugins/agentos/agents/.
+// roster.test.ts comprueba que cada grupo coincida con su team.json.
 export interface RosterGroup {
   id: string
   name: string
@@ -50,6 +50,17 @@ export const ROSTERS: RosterGroup[] = [
       { id: 'cfo', name: 'CFO', role: 'Flujo de caja, presupuesto y rentabilidad', color: '#2e7d32', face: 1, hair: '#14161A' },
       // Las 20 caras ya estaban ocupadas: el COO comparte la cara 13 (jefe de ventas) y se distingue por color y pelo.
       { id: 'operations-chief', name: 'COO', role: 'Operación diaria: procesos, entregas y coordinación entre áreas', color: '#0097a7', face: 13, hair: '#5A6470' },
+    ],
+  },
+  {
+    id: 'finance-team',
+    name: 'Finanzas',
+    agents: [
+      // Las 20 caras ya estaban ocupadas: se reutilizan con colores propios (la pareja cara|color es única).
+      { id: 'controller', name: 'Contralor', role: 'Estados financieros, cierre del mes y paquete al contador', color: '#00695c', face: 4, hair: '#14161A' },
+      { id: 'financial-analyst', name: 'Analista financiero', role: 'Evalúa proyectos, razones financieras y punto de equilibrio', color: '#283593', face: 7, hair: '#6B4A2F' },
+      { id: 'tax-compliance', name: 'Cumplimiento fiscal', role: 'Calendario SAT y revisión de CFDI (orientativo, con tu contador)', color: '#6d4c41', face: 16, hair: '#5A6470' },
+      { id: 'personal-finance-advisor', name: 'Finanzas personales', role: 'Presupuesto familiar, deudas y metas de ahorro', color: '#d81b60', face: 14, hair: '#C2410C' },
     ],
   },
   {

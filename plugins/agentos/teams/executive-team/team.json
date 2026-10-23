@@ -1,0 +1,17 @@
+{
+  "id": "executive-team",
+  "name": "Dirección",
+  "description": "Executive team for a Mexican SMB: CEO, CFO and COO (operations). Prepares dashboards, decision memos, weekly reviews, quarterly plans and cash flow forecasts.",
+  "agents": [
+    "ceo",
+    "cfo",
+    "operations-chief"
+  ],
+  "skills": [
+    "cash-flow-forecast",
+    "decision-memo",
+    "executive-dashboard",
+    "quarterly-plan",
+    "weekly-review"
+  ]
+}

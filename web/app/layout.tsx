@@ -4,6 +4,7 @@ import './globals.css'
 import AgentOSProvider from '@/components/AgentOSProvider'
 import AuthGate from '@/components/AuthGate'
 import { ThemeProvider, THEME_INIT_SCRIPT } from '@/lib/theme'
+import { OfficeViewProvider } from '@/lib/officeViewContext'
 
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-poppins' })
 const grotesk = Space_Grotesk({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-grotesk' })
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} /></head>
       <body>
         <ThemeProvider>
-          <AuthGate><AgentOSProvider>{children}</AgentOSProvider></AuthGate>
+          <OfficeViewProvider>
+            <AuthGate><AgentOSProvider>{children}</AgentOSProvider></AuthGate>
+          </OfficeViewProvider>
         </ThemeProvider>
       </body>
     </html>

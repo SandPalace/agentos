@@ -1,0 +1,18 @@
+{
+  "id": "collections-team",
+  "name": "Cobranza",
+  "description": "Collections team for Mexican SMBs: aging reports, draft payment reminders, payment reconciliation and payment plans, always with a firm and respectful approach.",
+  "agents": [
+    "collections-agent",
+    "collections-lead",
+    "portfolio-analyst",
+    "reconciler"
+  ],
+  "skills": [
+    "aging-report",
+    "collections-policy",
+    "payment-plan",
+    "payment-reconciliation",
+    "payment-reminder"
+  ]
+}

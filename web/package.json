@@ -6,7 +6,8 @@
     "dev": "next dev -p 4781 -H 127.0.0.1",
     "build": "next build",
     "start": "next start -p 4781 -H 127.0.0.1",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node ../scripts/migrate-plugins.mjs --from-npm"
   },
   "dependencies": {
     "@react-three/drei": "9",

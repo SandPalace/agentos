@@ -20,7 +20,7 @@ $PORT = if ($env:AGENTOS_PORT) { $env:AGENTOS_PORT } else { '4780' }
 $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
 $RUN = Join-Path $AGENTOS_HOME 'run'
 $LOGS = Join-Path $AGENTOS_HOME 'logs'
-$SERVER_JS = Join-Path $REPO 'plugins\agentos-core\server\src\server.mjs'
+$SERVER_JS = Join-Path $REPO 'plugins\agentos\server\src\server.mjs'
 $NEXT_BIN = Join-Path $REPO 'web\node_modules\next\dist\bin\next'
 $env:AGENTOS_PORT = $PORT
 $env:AGENTOS_HOME = $AGENTOS_HOME
@@ -211,11 +211,16 @@ function Invoke-WhatsApp($rest) {
 
 function Invoke-Update {
   Set-Location $REPO
+  # Marca para web\package.json (postinstall): este launcher ya migra los plugins el mismo.
+  $env:AGENTOS_LAUNCHER = '2'
   Say 'Actualizando AgentOS...'
+  Say '1/4 Bajando la version nueva (git pull)...'
   & git pull --ff-only
   if ($LASTEXITCODE -ne 0) { Say 'No se pudo hacer git pull. Revisa tu conexion o avisa a tu instructor.'; exit 1 }
   $wasWeb = Test-WebUp
+  Say '2/4 Deteniendo AgentOS...'
   Invoke-Stop
+  Say '3/4 Instalando dependencias y compilando la oficina web...'
   Push-Location (Join-Path $REPO 'web')
   & npm ci --no-audit --no-fund
   $ok = ($LASTEXITCODE -eq 0)
@@ -226,15 +231,12 @@ function Invoke-Update {
   }
   Pop-Location
   if (-not $ok) { Say 'Fallo la compilacion.'; exit 1 }
-  if ((Get-Command claude -ErrorAction SilentlyContinue) -and $env:AGENTOS_SKIP_CLAUDE -ne '1') {
-    & claude plugin marketplace update agentos
-    # Instala los equipos que falten (p. ej. Direccion con CFO y COO) y actualiza los que ya estan.
-    $installed = (& claude plugin list 2>$null) -join "`n"
-    foreach ($p in @('agentos-core', 'marketing-team', 'sales-team', 'collections-team', 'executive-team', 'dev-team')) {
-      if ($installed -match [regex]::Escape("$p@agentos")) { & claude plugin update "$p@agentos" } else { & claude plugin install "$p@agentos" }
-    }
-  }
-  Say 'Listo. Reinicia tus sesiones de Claude para cargar los cambios.'
+  # Un solo plugin `agentos`: quita los 7 viejos si siguen, instala/actualiza agentos@agentos y corrige el permiso
+  # de ~/.claude/settings.json y la ruta del MCP en Claude Desktop. Idempotente.
+  Say '4/4 Actualizando el plugin agentos en Claude (y migrando desde los 7 plugins viejos si hace falta)...'
+  & node (Join-Path $REPO 'scripts\migrate-plugins.mjs')
+  if ($LASTEXITCODE -ne 0) { Say 'Aviso: la migracion de plugins no termino. Vuelve a correr .\bin\agentos.cmd update o mira "Actualizar" en CLAUDE.md.' }
+  Say 'Listo. Reinicia tus sesiones de Claude (y Claude Desktop) para cargar los cambios.'
   if ($wasWeb) { Invoke-Start }
 }
 

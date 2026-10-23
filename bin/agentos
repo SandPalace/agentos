@@ -19,7 +19,7 @@ AGENTOS_ROOT="${AGENTOS_ROOT:-$REPO/workspaces}"
 PORT="${AGENTOS_PORT:-4780}"
 WEB_PORT="${AGENTOS_WEB_PORT:-4781}"
 RUN="$AGENTOS_HOME/run"; LOGS="$AGENTOS_HOME/logs"
-SERVER_JS="$REPO/plugins/agentos-core/server/src/server.mjs"
+SERVER_JS="$REPO/plugins/agentos/server/src/server.mjs"
 NEXT_BIN="$REPO/web/node_modules/next/dist/bin/next"
 export AGENTOS_PORT="$PORT" AGENTOS_HOME AGENTOS_ROOT
 
@@ -153,19 +153,21 @@ TXT
 
 cmd_update() {
   cd "$REPO" || exit 1
+  # Marca para web/package.json (postinstall): este launcher ya migra los plugins él mismo.
+  export AGENTOS_LAUNCHER=2
   say "Actualizando AgentOS..."
+  say "1/4 Bajando la versión nueva (git pull)..."
   git pull --ff-only || { say "No se pudo hacer git pull. Revisa tu conexión o avisa a tu instructor."; exit 1; }
   local was_web=0; web_up && was_web=1
+  say "2/4 Deteniendo AgentOS..."
   cmd_stop
+  say "3/4 Instalando dependencias y compilando la oficina web..."
   (cd web && npm ci --no-audit --no-fund && NEXT_PUBLIC_AGENTOS_PORT="$PORT" node node_modules/next/dist/bin/next build) || { say "Falló la compilación."; exit 1; }
-  if command -v claude >/dev/null 2>&1 && [ "${AGENTOS_SKIP_CLAUDE:-}" != 1 ]; then
-    claude plugin marketplace update agentos || true
-    # Instala los equipos que falten (p. ej. Dirección con CFO y COO) y actualiza los que ya están.
-    for p in agentos-core marketing-team sales-team collections-team executive-team dev-team; do
-      if claude plugin list 2>/dev/null | grep -q "$p@agentos"; then claude plugin update "$p@agentos" || true; else claude plugin install "$p@agentos" || true; fi
-    done
-  fi
-  say "Listo. Reinicia tus sesiones de Claude para cargar los cambios."
+  # Un solo plugin `agentos`: quita los 7 viejos si siguen, instala/actualiza agentos@agentos y corrige el permiso
+  # de ~/.claude/settings.json y la ruta del MCP en Claude Desktop. Idempotente.
+  say "4/4 Actualizando el plugin agentos en Claude (y migrando desde los 7 plugins viejos si hace falta)..."
+  node "$REPO/scripts/migrate-plugins.mjs" || say "Aviso: la migración de plugins no terminó. Vuelve a correr ./bin/agentos update o mira «Actualizar» en CLAUDE.md."
+  say "Listo. Reinicia tus sesiones de Claude (y Claude Desktop) para cargar los cambios."
   [ "$was_web" = 1 ] && cmd_start
 }
 

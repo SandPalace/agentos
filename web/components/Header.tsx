@@ -2,6 +2,7 @@
 import Brand from './Brand'
 import Tabs from './Tabs'
 import ThemeToggle from './ThemeToggle'
+import OfficeViewToggle from './OfficeViewToggle'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from './AuthGate'
@@ -22,6 +23,7 @@ export default function Header({ conn }: { conn?: 'live' | 'connecting' | 'offli
             {conn === 'connecting' ? 'Conectando' : 'Sin conexión con el servidor'}
           </span>
         )}
+        <OfficeViewToggle />
         <ThemeToggle />
         {enabled && user && (
           <>

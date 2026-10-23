@@ -1,57 +1,17 @@
 {
   "name": "agentos",
   "owner": {
-    "name": "Mty Agentic Labs"
+    "name": "AgentOS"
   },
   "plugins": [
     {
-      "name": "agentos-core",
-      "source": "./plugins/agentos-core",
-      "description": "Núcleo: estado en vivo de las sesiones, tareas y entregables, más el COO, agente por defecto que guía y enruta a todos los equipos.",
+      "name": "agentos",
+      "source": "./plugins/agentos",
+      "description": "AgentOS completo: el Assistant, todos los equipos de agentes (marketing, ventas, cobranza, dirección, finanzas y desarrollo web), el servidor local, los hooks y las herramientas MCP. Los equipos se arman dentro de la app.",
       "author": {
-        "name": "Mty Agentic Labs"
-      }
-    },
-    {
-      "name": "marketing-team",
-      "source": "./plugins/marketing-team",
-      "description": "Equipo de marketing agéntico: CMO, investigador, creativo y analista.",
-      "author": {
-        "name": "Mty Agentic Labs"
-      }
-    },
-    {
-      "name": "sales-team",
-      "source": "./plugins/sales-team",
-      "description": "Equipo de ventas agéntico: jefe de ventas, calificador de leads, propuestas y seguimiento.",
-      "author": {
-        "name": "Mty Agentic Labs"
-      }
-    },
-    {
-      "name": "collections-team",
-      "source": "./plugins/collections-team",
-      "description": "Equipo de cobranza agéntico: jefe de cobranza, analista de cartera, gestor de cobro y conciliador.",
-      "author": {
-        "name": "Mty Agentic Labs"
-      }
-    },
-    {
-      "name": "executive-team",
-      "source": "./plugins/executive-team",
-      "description": "Equipo de dirección agéntico: CEO, CFO y COO de operación (operations-chief; el Assistant `coo` vive en agentos-core).",
-      "author": {
-        "name": "Mty Agentic Labs"
-      }
-    },
-    {
-      "name": "dev-team",
-      "source": "./plugins/dev-team",
-      "description": "Equipo de desarrollo web agéntico: líder técnico, diseñador frontend, desarrollador y QA.",
-      "author": {
-        "name": "Mty Agentic Labs"
+        "name": "AgentOS"
       }
     }
   ],
-  "description": "AgentOS: equipos de agentes de Claude listos para instalar (agentes, skills, comandos y hooks)."
+  "description": "AgentOS: equipos de agentes de Claude listos para instalar, en un solo plugin (agentes, skills, hooks y MCP)."
 }

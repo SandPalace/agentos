@@ -1,67 +1,128 @@
-# AgentOS (copia instalada)
+# AgentOS (installed copy) — install, update and repair runbook
 
-Esta carpeta es una instalación de AgentOS: plugins de Claude, servidor local (puerto 4780) y oficina web (4781).
-Habla con la persona en español de México. Estas reglas aplican cuando te piden instalar, actualizar o reparar AgentOS;
-para el trabajo diario de los agentes (ventas, marketing, etc.) sigue las instrucciones de cada agente.
+This folder is an AgentOS install: ONE Claude plugin (`agentos`), a local server (port 4780) and a web office (port 4781).
+Talk to the person in Mexican Spanish; these instructions stay in English. Use this file when they ask to install,
+update, check or repair AgentOS («revisa y repara mi AgentOS», «actualiza AgentOS», «algo no funciona»). For daily work
+(sales, marketing...) follow each agent's own instructions. On Windows use `.\bin\agentos.cmd` wherever it says
+`./bin/agentos`, and PowerShell equivalents (`curl.exe`, `Select-String`). Tell the person in one line what each step does.
 
-## Dónde vive todo (dentro de esta carpeta)
+## Layout (everything inside this folder)
 
-| Qué | Carpeta | Variable |
-|---|---|---|
-| Base de datos, archivos, `.env`, logs, navegador, WhatsApp | `data/` | `AGENTOS_HOME` |
-| Carpetas de trabajo: `workspaces/default` y `workspaces/<id>` | `workspaces/` | `AGENTOS_ROOT` |
+| What                                                                                                              | Where                                                 | Env var        |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | -------------- |
+| DB, files, `.env` (web login), logs, run/pid, browser profiles, WhatsApp, OpenWA                                  | `data/`                                               | `AGENTOS_HOME` |
+| Work folders: `workspaces/default`, `workspaces/<id>`                                                             | `workspaces/`                                         | `AGENTOS_ROOT` |
+| The Claude plugin: all agents (`agents/`), skills (`skills/`), teams (`teams/<id>/team.json`), server, hooks, MCP | `plugins/agentos/`                                    |                |
+| Launcher                                                                                                          | `./bin/agentos start\|stop\|status\|update\|whatsapp` |                |
 
-`data/` y `workspaces/` están en `.gitignore`: nunca se suben ni se borran al actualizar. Los hooks y el MCP corren desde
-la copia del plugin en `~/.claude/plugins/cache`, así que encuentran esta carpeta por las variables `AGENTOS_HOME` y
-`AGENTOS_ROOT` que el instalador pone en `~/.claude/settings.json` (`env`) y en el MCP `agentos` de Claude Desktop. Esa configuración de Claude es lo único que AgentOS toca fuera de esta carpeta
-(no hay comando global ni PATH: el launcher es `./bin/agentos`, Windows `.\bin\agentos.cmd`).
+- `data/` and `workspaces/` are git-ignored: never uploaded, never deleted by an update.
+- **One plugin, `agentos@agentos`.** Teams (Marketing, Ventas, Cobranza, Dirección, Finanzas, Desarrollo web) are a
+  feature of the app: the person builds teams in the **Equipos** tab from the roster. Versions before 2026-10-22 had 7
+  plugins (`agentos-core`, `marketing-team`, `sales-team`, `collections-team`, `executive-team`, `finance-team`,
+  `dev-team`); `./bin/agentos update` migrates them automatically.
+- Hooks and MCP run from Claude's plugin cache, so they find this folder through `AGENTOS_HOME`/`AGENTOS_ROOT` in
+  `~/.claude/settings.json` (`env`) and in Claude Desktop's `mcpServers.agentos.env`. Claude's config is the ONLY thing
+  AgentOS touches outside this folder (no global command, no PATH change).
 
-## Actualizar AgentOS («actualiza AgentOS», «pasa a la versión nueva»)
+## Health check («revisa mi AgentOS»)
 
-Sigue estos pasos en orden, desde esta carpeta (la que tiene `.agentos-export`). En Windows usa `.\bin\agentos.cmd` donde
-dice `./bin/agentos`. Cuenta a la persona en una línea qué haces en cada paso.
+Run each from this folder; compare with the expected output. Stop at the first failure and go to Troubleshooting.
 
-1. **Cambios locales.** `git status --porcelain`. Si hay archivos modificados que vienen del repo (no `data/` ni
-   `workspaces/`, que están ignorados), no los descartes: muéstralos y pregunta si los guardas con `git stash`.
-2. **Detén y baja la versión nueva.** `./bin/agentos stop` (en versiones viejas también existía el comando `agentos stop`),
-   luego `git pull --ff-only`. Haz el pull tú, antes de `update`: el launcher viejo se reemplaza mientras corre.
-3. **Instala dependencias, compila y actualiza los plugins.** `./bin/agentos update`. Instala los equipos que falten
-   (Dirección con CEO, CFO y COO; Cobranza; Desarrollo) y actualiza los demás. Confirma con `claude plugin list` que hay
-   6 plugins `@agentos`; si falta alguno: `claude plugin install <plugin>@agentos`.
-4. **Estructura vieja.** Las versiones anteriores guardaban todo fuera de esta carpeta, en `~/.agentos` y `~/AgentOS`
-   (Windows: `%USERPROFILE%\.agentos` y `%USERPROFILE%\AgentOS`). Si existe alguna:
-   - corre `node scripts/migrate-to-project-folder.mjs` (solo muestra el plan) y enséñaselo a la persona;
-   - con su visto bueno: `./bin/agentos stop`, luego `node scripts/migrate-to-project-folder.mjs --yes`.
-   El script copia a `data/` y `workspaces/` (`~/AgentOS/workspaces/<id>` → `workspaces/<id>`; el resto de `~/AgentOS` →
-   `workspaces/default`), corrige las rutas guardadas en la base, pone `AGENTOS_HOME`/`AGENTOS_ROOT` en Claude y deja las
-   carpetas viejas renombradas como respaldo (`*.migrado-<fecha>`). Si dice que ya existen las dos estructuras, no copies
-   nada: explica cuál tiene datos (fechas de `agentos.db`) y pregunta cuál conservar.
-   Si no hay estructura vieja pero `~/.claude/settings.json` no tiene `AGENTOS_HOME` en `env`, vuelve a correr
-   `./install.sh` (Windows `.\install.ps1`): respeta lo que ya existe y solo completa lo que falta.
-5. **Restos de la instalación vieja a nivel sistema** (pregunta antes de borrar cada uno):
-   - Mac/Linux: un enlace `~/.local/bin/agentos` o `/usr/local/bin/agentos`. Bórralo solo si es un enlace simbólico que
-     apunta a `bin/agentos` de esta carpeta (`ls -l`). Si `~/.zshrc` o `~/.bashrc` tiene una línea `export PATH=...` que
-     agregó AgentOS para ese enlace, dile a la persona cuál es y que la quite si ya no usa otra cosa ahí.
-   - Windows: el atajo viejo vivía en `%USERPROFILE%\.agentos\bin` (queda dentro del respaldo tras migrar). Si esa ruta
-     sigue en el PATH del usuario, explica cómo quitarla (Configuración → Variables de entorno).
-   Desde ahora el comando es siempre `./bin/agentos` dentro de esta carpeta: no hay comando global.
-6. **Arranca y verifica.** `./bin/agentos start`. Pide a la persona que cierre Claude Desktop por completo y lo vuelva a
-   abrir, que entre a http://localhost:4781 y confirme:
-   - ve sus proyectos, tareas, leads y archivos;
-   - en **Equipos** aparece «Dirección» con CEO, CFO y COO;
-   - en cada agente, «Conversación» dice si es **Code** o **Cowork**, con título y carpeta. Si alguna cambió a
-     `cowork:…`, que pulse «Guardar cambios». «Probar» abre las sesiones de Code; las de Cowork no se pueden abrir por
-     enlace (Claude Desktop no lo permite): se trae Claude al frente y se abre la tarea en la barra lateral de Cowork.
-   - ya no existe el botón «Simular actividad»; los agentes de ejemplo que dejaba se borraron solos.
-7. **Respaldos.** Solo cuando la persona confirme que todo está bien, sugiérele borrar los `*.migrado-<fecha>`. Nunca los
-   borres tú.
+| #   | Command                                                                                                                                                                                                                                               | Expected                                                                                                                 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `./bin/agentos status`                                                                                                                                                                                                                                | `Servidor: corriendo (puerto 4780)` and `Oficina web: corriendo -> http://localhost:4781`                                |
+| 2   | `curl -s http://localhost:4780/api/auth/status`                                                                                                                                                                                                       | `{"enabled":true,"configured":true,...}` (`authenticated:false` is normal from curl)                                     |
+| 3   | `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:4781/`                                                                                                                                                                                     | `200`                                                                                                                    |
+| 4   | `claude plugin list`                                                                                                                                                                                                                                  | `agentos@agentos`, `Status: ✔ enabled`, and NONE of the 7 old plugins                                                    |
+| 5   | `grep -o '"mcp__plugin_agentos_agentos"' ~/.claude/settings.json`                                                                                                                                                                                     | `"mcp__plugin_agentos_agentos"` (only if the person allowed it at install; absent = Claude asks each time, not an error) |
+| 6   | macOS: `grep -o 'plugins/agentos/server/src/mcp.mjs' "$HOME/Library/Application Support/Claude/claude_desktop_config.json"` · Windows: `Select-String -Path "$env:APPDATA\Claude\claude_desktop_config.json" -Pattern 'plugins\\\\agentos\\\\server'` | one match (Claude Desktop's `agentos` MCP points to this folder)                                                         |
+| 7   | `node scripts/build-roster.mjs`                                                                                                                                                                                                                       | `7 teams, 26 agents, 80 skills (1 plugin: agentos)`                                                                      |
+| 8   | In a NEW Claude session: «¿qué herramientas de AgentOS tienes?»                                                                                                                                                                                       | it lists `mcp__plugin_agentos_agentos__agentos_*` tools (27: tasks, files, leads, canvas, roster...)                     |
 
-Si algo falla dos veces igual, detente: muestra el error tal cual y pregunta. Los logs están en `data/logs/`.
-Si el fallo es de AgentOS (no de la computadora de la persona), prepara un reporte con la herramienta MCP
-`agentos_issue_report` y dale a la persona el enlace de GitHub para que ella lo envíe.
+Check 8 from the terminal: `echo 'List your tools that start with mcp__plugin_agentos_agentos__ and print the count' |
+claude -p --agent agentos:sales-lead --allowedTools mcp__plugin_agentos_agentos` (prompt on stdin).
+If 1–8 pass, AgentOS is fine; ask the person what exactly looks wrong and use the table below.
 
-## Nunca
+## Update («actualiza AgentOS»)
 
-- Borrar `data/`, `workspaces/` ni los respaldos `*.migrado-*` sin que la persona lo pida.
-- Mostrar el contenido de `data/.env` (tiene la contraseña de la oficina).
-- Hacer `git clean -x`, `git reset --hard` o similares en esta carpeta.
+1. **Local changes.** `git status --porcelain`. Files changed that come from the repo (not `data/`/`workspaces/`): do not
+   discard them; show them and ask whether to keep them with `git stash`.
+2. **Pull first, then update.** `./bin/agentos stop`, `git pull --ff-only`, then `./bin/agentos update`. (Pull first: an
+   old launcher is replaced while it runs.) `update` prints 4 steps: pull, stop, `npm ci` + web build, plugin. Step 4
+   runs `node scripts/migrate-plugins.mjs`, which: uninstalls each old `<team>@agentos` plugin, refreshes the
+   marketplace, installs or updates `agentos@agentos`, rewrites the old allow rule `mcp__plugin_agentos-core_agentos` →
+   `mcp__plugin_agentos_agentos` in `~/.claude/settings.json`, and points Claude Desktop's `agentos` MCP to
+   `plugins/agentos/server/src/mcp.mjs` (backups `*.agentos-backup`; every other setting is kept).
+3. **Old launcher.** If the person ran an old `./bin/agentos update` directly, the migration still runs (from the web
+   install step) and they may see 7 «Plugin "…" not found in marketplace» errors: expected, harmless.
+4. **Stopped halfway?** Everything is idempotent; re-run what failed:
+   - pull failed → fix the network or local changes, then `git pull --ff-only`;
+   - `git pull` complains about the remote (the repo moved to `SandPalace/agentos`): `git remote set-url origin https://github.com/SandPalace/agentos.git`, then pull again;
+   - `npm ci`/build failed → `./bin/agentos update` again (it repeats only what is needed);
+   - plugin step failed or old plugins still listed → `node scripts/migrate-plugins.mjs` (safe to run any number of times);
+   - by hand, last resort: `claude plugin uninstall <old>@agentos` for each old one, `claude plugin marketplace update
+agentos`, `claude plugin install agentos@agentos`.
+5. **Old folder layout** (before 2026-10-16 everything lived in `~/.agentos` and `~/AgentOS`; Windows
+   `%USERPROFILE%\.agentos`, `%USERPROFILE%\AgentOS`). If either exists:
+   - `node scripts/migrate-to-project-folder.mjs` (plan only) and show the plan;
+   - with the person's OK: `./bin/agentos stop`, then `node scripts/migrate-to-project-folder.mjs --yes`. It copies into
+     `data/` and `workspaces/`, fixes paths in the DB, publishes `AGENTOS_HOME`/`AGENTOS_ROOT` to Claude and renames the old
+     folders `*.migrado-<date>` (backup). If it says both layouts exist, copy nothing: explain which one has data (dates of
+     `agentos.db`) and ask which to keep.
+   - No old layout but `~/.claude/settings.json` has no `AGENTOS_HOME` in `env`: re-run `./install.sh`
+     (Windows `.\install.ps1`); it keeps what exists and only fills in what is missing.
+6. **Leftovers of the old system-level install** (ask before deleting each): a symlink `~/.local/bin/agentos` or
+   `/usr/local/bin/agentos` (delete only if `ls -l` shows it points to this folder's `bin/agentos`); an `export PATH=...`
+   line AgentOS added to `~/.zshrc`/`~/.bashrc` (tell the person which one). Windows: `%USERPROFILE%\.agentos\bin` in the
+   user PATH (explain how to remove it: Settings → Environment variables).
+7. **Start and verify.** `./bin/agentos start`, then the Health check. Ask the person to quit Claude Desktop completely and
+   reopen it, open http://localhost:4781 and confirm their projects, tasks, leads and files are there, and that **Equipos**
+   shows the teams.
+8. **Backups.** Only after the person confirms everything works, suggest deleting `*.migrado-<date>` and `*.agentos-backup`.
+   Never delete them yourself.
+
+## Troubleshooting
+
+| Symptom                                                                                               | Fix                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude plugin list` has no `agentos@agentos`, or still lists `agentos-core@agentos`/`*-team@agentos` | `node scripts/migrate-plugins.mjs`; then restart Claude. If the marketplace is missing: `claude plugin marketplace add "$PWD"` and run it again                                                                                                                                                                                                                                                |
+| Agent says it has no AgentOS tools (`mcp__plugin_agentos_agentos__*`)                                 | Health check 4 and 2; the server starts by itself on the first session, else `./bin/agentos start`. Open a NEW session (tools load at start). Claude Desktop: check 6, then quit and reopen it. Agents listed in old project `.claude/agents/<id>.md` copies (Equipos → editor) may carry the old `mcp__plugin_agentos-core_agentos` in `tools`: replace it with `mcp__plugin_agentos_agentos` |
+| «El puerto 4780/4781 está ocupado»                                                                    | `./bin/agentos stop`; see who holds it: `lsof -nP -iTCP:4780 -sTCP:LISTEN` (Windows `Get-NetTCPConnection -LocalPort 4780`). Never kill a process you did not identify. Other ports: `AGENTOS_PORT=4790 AGENTOS_WEB_PORT=4791 ./bin/agentos start`                                                                                                                                             |
+| Web shows 400 errors, a blank page or old screens after an update                                     | Rebuild and restart: `./bin/agentos stop`, `(cd web && NEXT_PUBLIC_AGENTOS_PORT=4780 node node_modules/next/dist/bin/next build)`, `./bin/agentos start`; reload the browser (Cmd/Ctrl+Shift+R)                                                                                                                                                                                                |
+| Forgot the web password                                                                               | The person edits `data/.env` (`AGENTOS_USER=`, `AGENTOS_PASSWORD=`) in an editor: `open -e data/.env` (Windows `notepad data\.env`), or `./install.sh --reset-login` (Windows `-ResetLogin`). Never read, print or paste that file                                                                                                                                                             |
+| Server does not start                                                                                 | `tail -50 data/logs/server.log` (Windows `data\logs\server.err.log`). Common: Node < 22.13 (`node -v`; install Node 24 LTS and re-run the installer), port busy (above), a path moved (re-run `./install.sh`)                                                                                                                                                                                  |
+| Canvas or Inicio is blank                                                                             | Normal for a new project. Ask the project's lead (or any agent, or Assistant): «arma el inicio de este proyecto». Canvas fills as agents publish deliverables for review                                                                                                                                                                                                                       |
+| Built-in WhatsApp (`./bin/agentos whatsapp`) shows no QR                                              | Use the supported option instead: ask the sales team «conecta mi WhatsApp con OpenWA» (skill `openwa-setup`, a step-by-step helper)                                                                                                                                                                                                                                                            |
+| OpenWA stops answering / hangs while status says `ready`                                              | Ask the sales team «reinicia OpenWA», or: `AGENTOS_HOME="$PWD/data" node plugins/agentos/skills/openwa-setup/scripts/openwa.mjs stop` then `... start`. Never expose OpenWA (port 2785) to the internet                                                                                                                                                                                        |
+| Windows                                                                                               | Run in PowerShell from this folder; launcher `.\bin\agentos.cmd start`; installer `powershell -ExecutionPolicy Bypass -File .\install.ps1`. OpenWA needs `patch` from Git for Windows: `$env:Path += ";C:\Program Files\Git\usr\bin"` in that terminal. Firewall asks about `node`: Allow (private networks); AgentOS listens only on 127.0.0.1                                                |
+| `~/.agentos` or `~/AgentOS` exists                                                                    | Old layout: Update step 5                                                                                                                                                                                                                                                                                                                                                                      |
+
+If the same command fails twice the same way, stop: show the exact error and ask. Logs: `data/logs/`.
+
+## Feature map (where it lives, who owns it)
+
+- **Canvas** (tab «Canvas», per agent / team / project): agents publish drafts for the person to review with
+  `agentos_artifact_*`; procedure and templates in skill `agentos:canvas-artifacts`, ideas per team in
+  `plugins/agentos/teams/<team>/canvas-ideas.md`. Only the person approves.
+- **Inicio** (the project's home canvas): built by the project's lead or any agent (`agentos_artifact_publish`
+  `home: true`); Assistant (`coo`) keeps it current.
+- **Finanzas · revenue ledger** (sales, payments, IVA, CFDI data): `controller` agent, skill `revenue-ledger`
+  (`plugins/agentos/skills/revenue-ledger/`); tax content is indicative, always validated with the accountant.
+- **WhatsApp with OpenWA** (optional, self-hosted under `data/openwa/`): sales team (`sales-lead`), skill `openwa-setup`;
+  agents may send only after the person's OK for each message.
+- **Vista oficina** (3D office): optional; toggled with the «Vista oficina» button in the header, remembered per browser.
+- **Teams**: Equipos tab (the app); roster of agents per team in `plugins/agentos/teams/*/team.json`.
+
+## Report a bug or idea
+
+Use the MCP tool `agentos_issue_report` (kind `bug` or `feature`, your agent id, steps, expected vs actual; no secrets).
+It saves the report and returns a prefilled GitHub issue URL for `SandPalace/agentos`: give the person the link so THEY
+review and submit it. Use it only for AgentOS faults, not for problems of the person's computer.
+
+## Never
+
+- Delete `data/`, `workspaces/`, `*.migrado-*` or `*.agentos-backup` unless the person asks.
+- Show the contents of `data/.env` (it has the office password) or any key.
+- Run `git clean -x`, `git reset --hard` or similar in this folder.
+- Kill processes you did not identify as AgentOS (check the port owner first).
+- Edit Claude's config beyond what this runbook says (allow rule, `env`, Claude Desktop `mcpServers.agentos`).

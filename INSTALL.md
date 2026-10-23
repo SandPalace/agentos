@@ -15,7 +15,7 @@ Esta guía es para macOS (Linux es igual). Para Windows, ve a la sección **Wind
 1. **Acepta la invitación** de GitHub que llegó a tu correo.
 2. **Clona el repositorio** (abre la app Terminal). Te recomendamos la carpeta Documentos (o tu carpeta personal):
    ```
-   cd ~/Documents && git clone https://github.com/kikirrins/agentos.git AgentOS && cd AgentOS
+   cd ~/Documents && git clone https://github.com/SandPalace/agentos.git AgentOS && cd AgentOS
    ```
    Todo lo que AgentOS crea (datos, proyectos, logs, usuario y contraseña) se queda **dentro de esa carpeta**
    (`data/` para los datos y `workspaces/` para tus workspaces); no se instala nada en tu sistema (ni comandos globales, ni cambios al PATH). Esas dos carpetas nunca se suben a Git. Lo único fuera de la carpeta: la configuración de Claude, para que encuentre tus agentes.
@@ -40,7 +40,7 @@ Esta guía es para macOS (Linux es igual). Para Windows, ve a la sección **Wind
 
 Otros comandos: `./bin/agentos status`, `./bin/agentos stop`.
 
-**WhatsApp (opcional):** `./bin/agentos whatsapp` conecta un número de prueba para que los mensajes lleguen a Leads (el agente prepara, tú envías). Es una herramienta no oficial con riesgo de bloqueo; lee antes `plugins/sales-team/docs/WHATSAPP.md`. Funciona igual en Windows.
+**WhatsApp (opcional):** `./bin/agentos whatsapp` conecta un número de prueba para que los mensajes lleguen a Leads (el agente prepara, tú envías). Es una herramienta no oficial con riesgo de bloqueo; lee antes `plugins/agentos/teams/sales-team/docs/WHATSAPP.md`. Funciona igual en Windows. Para un WhatsApp más estable, pídele al equipo de ventas «conecta mi WhatsApp con OpenWA».
 
 ## Actualizar
 
@@ -49,7 +49,18 @@ Desde la carpeta de AgentOS:
 ```
 ./bin/agentos update
 ```
-Descarga la versión nueva, recompila y actualiza los plugins. Después reinicia Claude.
+Descarga la versión nueva, recompila y actualiza el plugin `agentos` (si tenías la versión de 7 plugins, los quita y deja
+uno solo; también corrige el permiso de Claude y Claude Desktop). Después reinicia Claude. Puedes repetirlo sin riesgo.
+
+## Revisar que todo esté bien
+
+```
+./bin/agentos status                                   # Servidor: corriendo (4780) · Oficina web: corriendo (4781)
+curl -s http://localhost:4780/api/auth/status          # {"enabled":true,"configured":true,...}
+claude plugin list                                     # agentos@agentos  ✔ enabled  (y ningún otro @agentos)
+```
+
+¿Algo raro? Abre Claude en la carpeta de AgentOS y dile **«revisa y repara mi AgentOS»**: sigue el manual de `CLAUDE.md`.
 
 ## Problemas comunes
 
@@ -59,7 +70,8 @@ Descarga la versión nueva, recompila y actualiza los plugins. Después reinicia
 - **Olvidé mi contraseña**: abre `data/.env` dentro de la carpeta de AgentOS con cualquier editor (`open -e data/.env`), cambia `AGENTOS_PASSWORD=...`
   y guarda. No hace falta reiniciar. O corre `./install.sh --reset-login`.
 - **No encuentra `claude`**: instala Claude Code (`curl -fsSL https://claude.ai/install.sh | bash`) y corre `./install.sh` de nuevo.
-- **La web se ve rota después de actualizar**: `./bin/agentos stop` y luego `./bin/agentos start`.
+- **La web se ve rota (errores 400 o en blanco) después de actualizar**: `./bin/agentos stop`, `(cd web && node node_modules/next/dist/bin/next build)` y `./bin/agentos start`.
+- **Siguen apareciendo los plugins viejos o falta `agentos@agentos`**: `node scripts/migrate-plugins.mjs` y reinicia Claude.
 - **Logs**: `data/logs/` (dentro de la carpeta de AgentOS).
 
 ## Windows
@@ -79,7 +91,7 @@ Instalador nativo para Windows 10/11 (PowerShell 5.1, el que ya trae Windows, o 
 2. Clona el repositorio:
    ```
    cd $HOME\Documents
-   git clone https://github.com/kikirrins/agentos.git AgentOS
+   git clone https://github.com/SandPalace/agentos.git AgentOS
    cd AgentOS
    ```
    Igual que en Mac, todo (datos, proyectos, logs) se queda dentro de esa carpeta, en `data\` y `workspaces\`, y no se instala nada en tu sistema. Lo único fuera de la carpeta: la configuración de Claude, para que encuentre tus agentes.
@@ -112,4 +124,4 @@ Opciones del instalador: `-ResetLogin`, `-NoClaude`, `-NoClaudeCli`, `-NoDesktop
 
 ## Soporte
 
-hello@algolab.academy
+Abre un issue en este repositorio, o dile a Assistant «algo no funciona en AgentOS» y te prepara el reporte.

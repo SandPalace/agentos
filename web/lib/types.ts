@@ -142,3 +142,37 @@ export interface WaMessage { id: string; workspace_id: string; chat_id: string; 
 export interface WaDraft { id: string; workspace_id: string; chat_id: string; phone: string | null; lead_id: string | null; text: string; status: 'draft' | 'sent' | 'discarded' | 'failed'; error: string | null; created_by: string | null; created_at: number; sent_at: number | null }
 export interface WaChat { chat_id: string; phone: string | null; name: string | null; lead_id: string | null; last_message: { direction: 'in' | 'out'; body: string | null; type: string | null; ts: number }; unanswered: number; pending_drafts: number }
 export interface WaStatus { configured: boolean; connected: boolean; workspace: string; limits: { max_per_hour: number; max_per_day: number; max_text_length: number }; sent_last_hour: number }
+
+// ── Canvas: artefactos que los agentes publican para que la persona los revise ──
+export type ArtifactStatus = 'draft' | 'in_review' | 'approved' | 'changes_requested'
+export type ArtifactScope = 'workspace' | 'team' | 'agent'
+export type ArtifactKind = 'html' | 'markdown' | 'image' | 'pdf' | 'csv' | 'text'
+export interface Artifact {
+  id: string
+  workspace_id: string
+  scope_type: ArtifactScope
+  scope_id: string
+  title: string
+  description: string | null
+  kind: ArtifactKind
+  status: ArtifactStatus
+  author_agent: string | null
+  task_id: string | null
+  current_version: number
+  created_at: number
+  updated_at: number
+  /** Latest version */
+  content_type: string | null
+  size: number | null
+  version_at: number | null
+  comments: number
+  /** Comments of the person the author agent has not read yet */
+  unread_human: number
+  /** 1 = the project home (Inicio tab): one per workspace, built by the Assistant, never reviewed */
+  is_home: number
+}
+/** GET /api/workspaces/:id/canvas/home (null when the Assistant has not built it yet) */
+export interface HomeArtifact extends Artifact { url: string; version_note: string | null; version_author: string | null }
+export interface ArtifactVersion { n: number; content_type: string; size: number; note: string | null; author: string | null; created_at: number; url: string }
+export interface ArtifactComment { id: number; version_n: number | null; author: string; body: string; decision: 'approved' | 'changes_requested' | null; read_by_agent: number; created_at: number }
+export interface ArtifactDetail extends Omit<Artifact, 'comments'> { versions: ArtifactVersion[]; comments: ArtifactComment[]; task: { id: string; title: string; status: TaskStatus } | null }

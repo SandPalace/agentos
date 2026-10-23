@@ -12,7 +12,7 @@ AGENTOS_USER=your-user
 AGENTOS_PASSWORD=a-long-password
 ```
 
-then `chmod 600 ~/.agentos/.env`. Template: `plugins/agentos-core/server/.env.example`.
+then `chmod 600 ~/.agentos/.env`. Template: `plugins/agentos/server/.env.example`.
 
 Other sources, per key, first one found wins: environment variables `AGENTOS_USER` / `AGENTOS_PASSWORD` →
 `~/.agentos/.env` → `~/.agentos/config.json` (`{"user": "…", "password": "…"}`).

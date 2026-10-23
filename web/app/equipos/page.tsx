@@ -5,6 +5,7 @@ import Header from '@/components/Header'
 import Modal from '@/components/Modal'
 import NameSuggest from '@/components/NameSuggest'
 import AgentDefEditor, { GlobalAgentDefs } from '@/components/AgentDefEditor'
+import { AgentCanvasSection } from '@/components/CanvasBoard'
 import { ClaudeIcon, CodexIcon } from '@/components/BrandIcons'
 import { AVATAR_PALETTES } from '@/components/office/officeLayout'
 import { COO_AGENT, ROSTERS, findAgent } from '@/lib/roster'
@@ -404,6 +405,7 @@ export default function EquiposPage() {
                 className="resize-y rounded-sm border border-line px-3 py-2 text-sm leading-relaxed outline-none focus:border-blue"
               />
               <div className="text-right font-mono text-[11px] text-muted">{cooDraft.context.length} / {MAX_CONTEXT}</div>
+              <AgentCanvasSection agentId="coo" name={coo?.display_name || COO_AGENT.name} />
             </div>
             {error && <div className="card border-red p-3 text-sm text-red" role="alert">{error}</div>}
             <div className="flex items-center gap-3">
@@ -513,6 +515,7 @@ export default function EquiposPage() {
                       <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-muted hover:text-ink">Descripción del agente <span className="font-normal">(.claude/agents/{m.agent_id}.md de este proyecto)</span></summary>
                       <div className="border-t border-line p-3"><AgentDefEditor agentId={m.agent_id} scope="project" /></div>
                     </details>
+                    <AgentCanvasSection agentId={m.agent_id} name={m.display_name || a?.name || m.agent_id} />
                   </div>
                 )
               })}

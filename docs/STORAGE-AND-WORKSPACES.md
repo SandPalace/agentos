@@ -192,7 +192,7 @@ appended at the end.
 
 ## Tests
 
-`cd plugins/agentos-core/server && node --test test/*.test.mjs`. `test/files.test.mjs` covers the blob store (put/get/list/copy/delete,
+`cd plugins/agentos/server && node --test test/*.test.mjs`. `test/files.test.mjs` covers the blob store (put/get/list/copy/delete,
 key validation, symlinks), the web API (upload/list/move/trash/restore/zip/import/SSE), the MCP file tools (workspace isolation, legacy
 paths, limits) and virtual deliveries; the ZIP is checked with python3 `zipfile` and `unzip -t` when available.
 `test/workspaces.test.mjs` covers workspace isolation, deliveries copied into the store and file security.
