@@ -215,10 +215,23 @@ ok "$AGENTOS_ROOT"
 
 chmod +x "$REPO/bin/agentos"
 
+# Extensión de Claude Desktop (respaldo para Chat y Cowork si el plugin no se puede agregar desde Personalizar → Plugins).
+MCPB="$REPO/dist/agentos.mcpb"
+node "$REPO/scripts/build-mcpb.mjs" >/dev/null 2>&1 || MCPB=""
+
 cat <<MSG
 
 Listo. Siguiente paso:
     cd "$REPO" && ./bin/agentos start
 (el comando vive dentro de esta carpeta; no se instala nada en tu sistema)
 y entra con el usuario que acabas de crear (http://localhost:${AGENTOS_WEB_PORT:-4781}).
+
+Para usar AgentOS en Claude Desktop (Chat y Cowork):
+  1. Claude Desktop → Personalizar → Plugins → Agregar marketplace: SandPalace/agentos → instala «agentos».
+  2. Abre una sesión NUEVA de Cowork y pregunta: «¿Qué equipos y agentes tengo en AgentOS?»
+MSG
+[ -n "$MCPB" ] && cat <<MSG
+  Si Cowork no ve las herramientas de AgentOS, instala la extensión (un clic):
+     Claude Desktop → Ajustes → Extensiones → Instalar extensión… → elige
+     $MCPB
 MSG

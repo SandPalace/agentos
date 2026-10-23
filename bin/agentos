@@ -178,12 +178,34 @@ cmd_update() {
   # de ~/.claude/settings.json y la ruta del MCP en Claude Desktop. Idempotente.
   say "4/4 Actualizando el plugin agentos en Claude (y migrando desde los 7 plugins viejos si hace falta)..."
   node "$REPO/scripts/migrate-plugins.mjs" || say "Aviso: la migración de plugins no terminó. Vuelve a correr ./bin/agentos update o mira «Actualizar» en CLAUDE.md."
+  node "$REPO/scripts/build-mcpb.mjs" >/dev/null 2>&1 || true   # dist/agentos.mcpb (extensión de Claude Desktop, respaldo)
   say "Listo. Reinicia tus sesiones de Claude (y Claude Desktop) para cargar los cambios."
   [ "$was_web" = 1 ] && cmd_start
+}
+
+# Llave del MCP por HTTP (http://127.0.0.1:$PORT/mcp) para Codex, OpenCode, Cursor u otro cliente MCP.
+# La crea si falta (data/mcp-key, solo tu usuario la puede leer) y dice dónde está; nunca la imprime.
+cmd_mcp_key() {
+  local f="$AGENTOS_HOME/mcp-key"
+  AGENTOS_HOME="$AGENTOS_HOME" node --input-type=module -e "const m = await import(process.argv[1]); m.ensureMcpKey()" \
+    "$(node -e 'process.stdout.write(require("url").pathToFileURL(process.argv[1]).href)' "$REPO/plugins/agentos/server/src/auth.mjs")" \
+    || { say "No pude crear la llave en $f."; exit 1; }
+  say "Llave del MCP de AgentOS: $f"
+  say "(no la compartas ni la pegues en un chat; solo va en la configuración de tu cliente MCP)"
+  say ""
+  say "Cópiala al portapapeles:"
+  say "  macOS:  pbcopy < \"$f\""
+  say "  Linux:  xclip -selection clipboard < \"$f\""
+  say ""
+  say "En tu cliente MCP agrega un servidor HTTP:"
+  say "  URL:     http://127.0.0.1:$PORT/mcp"
+  say "  Header:  Authorization: Bearer <pega aquí la llave>"
+  say "Guía por cliente (Codex, OpenCode, Cursor): docs/API.md"
 }
 
 case "${1:-}" in
   start) cmd_start ;; stop) cmd_stop ;; status) cmd_status ;; update) cmd_update ;;
   whatsapp) shift; cmd_whatsapp "$@" ;;
-  *) say "Uso: ./bin/agentos {start|stop|status|update|whatsapp [--reset]}"; exit 2 ;;
+  mcp-key) cmd_mcp_key ;;
+  *) say "Uso: ./bin/agentos {start|stop|status|update|mcp-key|whatsapp [--reset]}"; exit 2 ;;
 esac

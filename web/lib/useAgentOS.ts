@@ -2,8 +2,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { FilesEvent, Lead, Session, StorageStatus, SystemAgent, Task, Team, Workspace } from './types'
 
-// Same hostname as the page (localhost or 127.0.0.1): the session cookie is same-site only if both match.
-export const SERVER = process.env.NEXT_PUBLIC_AGENTOS_URL ?? (typeof window !== 'undefined' ? `http://${window.location.hostname}:${process.env.NEXT_PUBLIC_AGENTOS_PORT ?? 4780}` : `http://127.0.0.1:${process.env.NEXT_PUBLIC_AGENTOS_PORT ?? 4780}`)
+// Same origin: in the browser the API is this page's own `/api/*` (next.config.mjs proxies it to the local server), so
+// the session cookie is first-party and no browser (Cowork's embedded one included) has to call another port.
+export const SERVER = process.env.NEXT_PUBLIC_AGENTOS_URL ?? (typeof window !== 'undefined' ? '' : `http://127.0.0.1:${process.env.NEXT_PUBLIC_AGENTOS_PORT ?? 4780}`)
 
 /** fetch to the AgentOS server: sends the session cookie and tells the auth gate when the session is gone. */
 export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
@@ -104,10 +105,13 @@ export function useAgentOSState(): AgentOSState {
 
   // Restore the persisted workspace before opening the first stream.
   useEffect(() => {
+    // A direct link (`?ws=<id>`, e.g. /canvas?ws=acme&artifact=A-…) wins over the remembered project.
+    let saved = new URLSearchParams(window.location.search).get('ws')
     try {
-      const saved = localStorage.getItem(LS_KEY)
-      if (saved) { currentWorkspace = saved; setWorkspaceId(saved) }
+      if (saved) localStorage.setItem(LS_KEY, saved)
+      else saved = localStorage.getItem(LS_KEY)
     } catch { /* storage blocked */ }
+    if (saved) { currentWorkspace = saved; setWorkspaceId(saved) }
     setHydrated(true)
   }, [])
 

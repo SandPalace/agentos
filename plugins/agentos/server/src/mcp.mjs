@@ -1,7 +1,8 @@
-// MCP "agentos" por stdio. Corre en la computadora del cliente (no en la VM de Cowork),
-// así que llega al servidor local aunque Cowork no pueda ver localhost.
+// MCP "agentos". Por stdio (plugin, extensión .mcpb) corre en la computadora de la persona (no en la VM de Cowork),
+// así que llega al servidor local aunque Cowork no pueda ver localhost. El servidor reusa `handle` para el MCP por
+// HTTP en /mcp (Codex, OpenCode, Cursor...): una sola lista de herramientas, un solo despacho.
 import { createInterface } from 'node:readline'
-import { ensureServer, baseUrl } from './ensure.mjs'
+import { ensureServer, baseUrl, DOWN_MESSAGE } from './ensure.mjs'
 import { isMain } from './paths.mjs'
 
 // Optional project selector. Team agents are scoped to their own project; the Assistant works across all of them.
@@ -262,7 +263,7 @@ const TOOLS = [
   {
     name: 'agentos_artifact_publish',
     description:
-      'Publishes an artifact on the AgentOS Canvas so the person can review it (approve or request changes) in the web: anything they must look at and validate, such as a post draft, a quote, a report or a design. Content: `path` of a workspace file saved with agentos_file_write (it is copied, so later edits do not change what was reviewed) OR inline {name, content|content_base64, content_type?}. Supported: html, markdown, image, pdf, csv, text. Pass `artifact_id` to add a new version (nothing is overwritten; the old versions stay). Status becomes in_review (request_review=false keeps a draft); with artifact_id and no content it moves a draft to in_review. You can never approve: only the person does. Approving an artifact does not finish its task: still deliver the task with agentos_task_deliver. `home: true` = the project home shown in the Inicio tab (one per project, workspace scope, no review: it stays a living page the person can comment on).',
+      'Publishes an artifact on the AgentOS Canvas so the person can review it (approve or request changes) in the web: anything they must look at and validate, such as a post draft, a quote, a report or a design. The result has `link` (opens the project and this card in the web): give that link to the person. Content: `path` of a workspace file saved with agentos_file_write (it is copied, so later edits do not change what was reviewed) OR inline {name, content|content_base64, content_type?}. Supported: html, markdown, image, pdf, csv, text. Pass `artifact_id` to add a new version (nothing is overwritten; the old versions stay). Status becomes in_review (request_review=false keeps a draft); with artifact_id and no content it moves a draft to in_review. You can never approve: only the person does. Approving an artifact does not finish its task: still deliver the task with agentos_task_deliver. `home: true` = the project home shown in the Inicio tab (one per project, workspace scope, no review: it stays a living page the person can comment on).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -352,32 +353,49 @@ const TOOLS = [
 // Así un agente del workspace B nunca ve las tareas ni los equipos del workspace A.
 const scopeHeaders = () => (process.env.AGENTOS_WORKSPACE ? { 'x-agentos-workspace': process.env.AGENTOS_WORKSPACE } : { 'x-agentos-cwd': process.cwd() })
 
-async function api(method, path, body, workspace) {
-  const r = await fetch(baseUrl + path, {
-    method,
-    headers: { 'content-type': 'application/json', ...(workspace ? { 'x-agentos-workspace': workspace } : scopeHeaders()) },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+// Contexto de una llamada. stdio: este proceso (servidor por AGENTOS_PORT, arrancarlo si está apagado, alcance por env/cwd).
+// HTTP (/mcp dentro del servidor): `base` = el propio servidor, `scope` = cabeceras de la petición, `agent` = X-AgentOS-Agent.
+const STDIO = { base: baseUrl, scope: scopeHeaders, agent: () => process.env.AGENTOS_AGENT || null, ensure: true }
+
+// Link that opens an artifact in the web (project + card). The web runs on AGENTOS_WEB_PORT (4781 by default).
+export const canvasLink = (ws, id) => `http://localhost:${process.env.AGENTOS_WEB_PORT || 4781}/canvas?ws=${encodeURIComponent(ws)}&artifact=${encodeURIComponent(id)}`
+
+async function request(ctx, method, path, body, workspace) {
+  let r
+  try {
+    r = await fetch(ctx.base + path, {
+      method,
+      headers: { 'content-type': 'application/json', ...(workspace ? { 'x-agentos-workspace': workspace } : ctx.scope()) },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  } catch {
+    throw new Error(DOWN_MESSAGE) // se apagó después de ensureServer (o no se pudo arrancar)
+  }
   const text = await r.text()
-  const json = text ? JSON.parse(text) : null
+  let json = null
+  try { json = text ? JSON.parse(text) : null } catch { /* cuerpo no JSON */ }
+  // Ruta que este servidor no conoce: el plugin (o la extensión) es más nuevo que la carpeta AgentOS de la persona.
+  if (r.status === 404 && json?.error === 'not_found' && !json.message) throw new Error('No encontrado. Si es una herramienta nueva, tu servidor AgentOS puede ser de otra versión que el plugin: corre ./bin/agentos update en tu carpeta AgentOS.')
   if (!r.ok) throw new Error(json?.message || json?.error || `HTTP ${r.status}`)
   return json
 }
 
 // Valida el id de proyecto contra el servidor; el error lista los ids válidos.
-async function targetWorkspace(id) {
+async function targetWorkspace(api, id) {
   if (id === undefined || id === null || id === '') return undefined
   const list = await api('GET', '/api/workspaces')
   if (!list.some((w) => w.id === String(id))) throw new Error(`Unknown workspace "${id}". Valid project ids: ${list.map((w) => w.id).join(', ')} (see agentos_projects).`)
   return String(id)
 }
 
-async function callTool(name, a = {}) {
-  await ensureServer()
+async function callTool(name, a = {}, ctx = STDIO) {
+  if (ctx.ensure && !(await ensureServer())) throw new Error(DOWN_MESSAGE)
+  const api = (method, path, body, workspace) => request(ctx, method, path, body, workspace)
+  const me = ctx.agent()
   if (name === 'agentos_projects') return api('GET', '/api/projects')
   if (name === 'agentos_overview' && a.workspace === 'all') return { projects: await api('GET', '/api/projects'), hint: 'Per-project summary. Call agentos_overview with a project id as `workspace` for the full detail.' }
   const { workspace, ...args } = a
-  const ws = await targetWorkspace(workspace)
+  const ws = await targetWorkspace(api, workspace)
   a = args
   switch (name) {
     case 'agentos_task_create':
@@ -405,9 +423,11 @@ async function callTool(name, a = {}) {
       return a.status ? all.filter((t) => t.status === a.status) : all
     }
     case 'agentos_issue_report':
-      return api('POST', '/api/issues', { ...a, agent: a.agent || process.env.AGENTOS_AGENT || null }, ws)
-    case 'agentos_artifact_publish':
-      return api('POST', '/api/canvas/publish', { ...a, agent: a.agent || process.env.AGENTOS_AGENT || null }, ws)
+      return api('POST', '/api/issues', { ...a, agent: a.agent || me }, ws)
+    case 'agentos_artifact_publish': {
+      const r = await api('POST', '/api/canvas/publish', { ...a, agent: a.agent || me }, ws)
+      return r?.id && r.workspace_id ? { ...r, link: canvasLink(r.workspace_id, r.id) } : r
+    }
     case 'agentos_artifact_list': {
       const q = new URLSearchParams()
       for (const k of ['scope_type', 'scope_id', 'status', 'agent']) if (a[k]) q.set(k, a[k])
@@ -416,7 +436,7 @@ async function callTool(name, a = {}) {
     }
     case 'agentos_artifact_get': {
       const r = await api('GET', `/api/canvas/${encodeURIComponent(a.id ?? '')}${a.agent ? `?agent=${encodeURIComponent(a.agent)}` : ''}`, undefined, ws)
-      return { ...r, versions: r.versions.map((v) => ({ ...v, content_url: baseUrl + v.url })) }
+      return { ...r, link: canvasLink(r.workspace_id, r.id), versions: r.versions.map((v) => ({ ...v, content_url: ctx.base + v.url })) }
     }
     case 'agentos_artifact_comment':
       return api('POST', `/api/canvas/${encodeURIComponent(a.id ?? '')}/comments`, { body: a.body, agent: a.agent }, ws)
@@ -431,7 +451,7 @@ async function callTool(name, a = {}) {
     case 'agentos_whatsapp_inbox':
       return api('GET', `/api/whatsapp/chats?only_unanswered=${a.only_unanswered === false ? 0 : 1}&recent=5${a.limit ? `&limit=${encodeURIComponent(a.limit)}` : ''}`, undefined, ws)
     case 'agentos_whatsapp_draft': {
-      const d = await api('POST', '/api/whatsapp/drafts', { ...a, created_by: process.env.AGENTOS_AGENT || 'agent' }, ws)
+      const d = await api('POST', '/api/whatsapp/drafts', { ...a, created_by: me || 'agent' }, ws)
       return { ...d, note: 'Borrador creado: la persona lo revisa y lo envía desde la web (los agentes no envían).' }
     }
     case 'agentos_checkin':
@@ -453,7 +473,8 @@ async function callTool(name, a = {}) {
   }
 }
 
-export async function handle(msg) {
+/** One JSON-RPC message → its response (null for notifications). `ctx` defaults to stdio; the server passes its own for /mcp. */
+export async function handle(msg, ctx = STDIO) {
   const { id, method, params } = msg
   if (id === undefined) return null // notificaciones (initialized, cancelled...) no llevan respuesta
   const ok = (result) => ({ jsonrpc: '2.0', id, result })
@@ -470,7 +491,7 @@ export async function handle(msg) {
       return ok({ tools: TOOLS })
     case 'tools/call':
       try {
-        const out = await callTool(params.name, params.arguments)
+        const out = await callTool(params?.name, params?.arguments, ctx)
         return ok({ content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] })
       } catch (e) {
         return ok({ isError: true, content: [{ type: 'text', text: e.message }] })
@@ -480,7 +501,7 @@ export async function handle(msg) {
   }
 }
 
-if (isMain(import.meta.url)) {
+export function runStdio() {
   const rl = createInterface({ input: process.stdin })
   rl.on('line', async (line) => {
     if (!line.trim()) return
@@ -494,3 +515,5 @@ if (isMain(import.meta.url)) {
     if (res) process.stdout.write(JSON.stringify(res) + '\n')
   })
 }
+
+if (isMain(import.meta.url)) runStdio()

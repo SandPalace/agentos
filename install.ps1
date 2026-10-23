@@ -320,3 +320,13 @@ Write-Host '    .\bin\agentos.cmd start'
 Write-Host '(el comando vive dentro de esta carpeta; no se instala nada en tu sistema)'
 Write-Host "y entra con el usuario que acabas de crear (http://localhost:$WEB_PORT)."
 Write-Host 'Si Windows pregunta por el Firewall para "node", elige "Permitir" (solo redes privadas).'
+Write-Host ''
+Write-Host 'Para usar AgentOS en Claude Desktop (Chat y Cowork):'
+Write-Host '  1. Claude Desktop -> Personalizar -> Plugins -> Agregar marketplace: SandPalace/agentos -> instala "agentos".'
+Write-Host '  2. Abre una sesion NUEVA de Cowork y pregunta: "Que equipos y agentes tengo en AgentOS?"'
+& node (Join-Path $REPO 'scripts\build-mcpb.mjs') *> $null
+if ($LASTEXITCODE -eq 0) {
+  Write-Host '  Si Cowork no ve las herramientas de AgentOS, instala la extension (un clic):'
+  Write-Host '     Claude Desktop -> Ajustes -> Extensiones -> Instalar extension... -> elige'
+  Write-Host ("     " + (Join-Path $REPO 'dist\agentos.mcpb'))
+}

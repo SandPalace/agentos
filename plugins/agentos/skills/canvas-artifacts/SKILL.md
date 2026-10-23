@@ -53,7 +53,8 @@ Each template starts with an HTML comment with its exact rules. Read it before f
    `scope_id` empty to use the default), inline `name` + `content` (the file text), `task_id` when there is a task,
    `request_review: true`, and `description` = **one line with the question for the owner** about what to validate
    (e.g. «¿Confirmas los montos de cobranza contra tu banco? Faltan 2 datos marcados [NO DATA].»). Then deliver the
-   task as usual (`agentos_task_deliver`): approving the artifact does not finish the task.
+   task as usual (`agentos_task_deliver`): approving the artifact does not finish the task. Give the person the `link`
+   from the result (`http://localhost:4781/canvas?ws=<project>&artifact=<id>`): it opens that project and card.
 6. **On feedback** (`agentos_artifact_list` with `needs_action: true` and your `agent`, at the start of your work):
    read it with `agentos_artifact_get`, edit the SAME working file, re-run step 4 and publish a **new version of the
    same artifact** (`artifact_id`, no new card), with `note` = what changed in one line

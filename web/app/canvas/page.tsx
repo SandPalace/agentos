@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Header from '@/components/Header'
 import CanvasBoard, { ARTIFACT_STATUS, useAgentLabel } from '@/components/CanvasBoard'
+import CanvasDetail from '@/components/CanvasDetail'
 import { ROSTERS, ROSTER_AGENTS } from '@/lib/roster'
 import { useAgentOS } from '@/lib/useAgentOS'
 import type { ArtifactScope, ArtifactStatus } from '@/lib/types'
@@ -20,10 +21,15 @@ export default function CanvasPage() {
   const [scope, setScope] = useState<ArtifactScope>('workspace')
   const [scopeId, setScopeId] = useState('')
   const [status, setStatus] = useState<ArtifactStatus | ''>('')
+  // Link directo de un agente: ?ws=<proyecto>&artifact=<id> abre esa tarjeta (el proyecto lo elige useAgentOS con ?ws).
+  const [linked, setLinked] = useState<{ ws: string | null; artifact: string } | null>(null)
   // «Ver su canvas» (oficina) llega con ?agent=<id>.
   useEffect(() => {
-    const agent = new URLSearchParams(window.location.search).get('agent')
+    const q = new URLSearchParams(window.location.search)
+    const agent = q.get('agent')
     if (agent) { setScope('agent'); setScopeId(agent) }
+    const artifact = q.get('artifact')
+    if (artifact) setLinked({ ws: q.get('ws'), artifact })
   }, [])
   // Equipos del proyecto primero; luego los grupos del roster (un agente fuera de equipos publica en el de su plugin).
   const teamOptions = useMemo(() => [
@@ -65,6 +71,7 @@ export default function CanvasPage() {
         </div>
       </div>
       <CanvasBoard scopeType={scope} scopeId={scopeId || undefined} status={status || undefined} />
+      {linked && (!linked.ws || linked.ws === workspaceId) && <CanvasDetail id={linked.artifact} onClose={() => setLinked(null)} />}
     </main>
   )
 }

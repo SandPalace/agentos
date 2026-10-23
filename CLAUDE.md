@@ -13,7 +13,8 @@ update, check or repair AgentOS («revisa y repara mi AgentOS», «actualiza Age
 | DB, files, `.env` (web login), logs, run/pid, browser profiles, WhatsApp, OpenWA                                  | `data/`                                               | `AGENTOS_HOME` |
 | Work folders: `workspaces/default`, `workspaces/<id>`                                                             | `workspaces/`                                         | `AGENTOS_ROOT` |
 | The Claude plugin: all agents (`agents/`), skills (`skills/`), teams (`teams/<id>/team.json`), server, hooks, MCP | `plugins/agentos/`                                    |                |
-| Launcher                                                                                                          | `./bin/agentos start\|stop\|status\|update\|whatsapp` |                |
+| Launcher                                                                                                          | `./bin/agentos start\|stop\|status\|update\|mcp-key\|whatsapp` |                |
+| Claude Desktop extension (fallback for Chat/Cowork), rebuilt by install and update                                | `dist/agentos.mcpb`                                   |                |
 
 - `data/` and `workspaces/` are git-ignored: never uploaded, never deleted by an update.
 
@@ -35,8 +36,13 @@ line, show the files it names and ask; never force it.
   plugins (`agentos-core`, `marketing-team`, `sales-team`, `collections-team`, `executive-team`, `finance-team`,
   `dev-team`); `./bin/agentos update` migrates them automatically.
 - Hooks and MCP run from Claude's plugin cache, so they find this folder through `AGENTOS_HOME`/`AGENTOS_ROOT` in
-  `~/.claude/settings.json` (`env`) and in Claude Desktop's `mcpServers.agentos.env`. Claude's config is the ONLY thing
-  AgentOS touches outside this folder (no global command, no PATH change).
+  `~/.claude/settings.json` (`env`) and in Claude Desktop's `mcpServers.agentos.env`; when those vars are missing (a plugin
+  added from Claude Desktop, which Cowork uses) the MCP reads those same two files, then tries `~/Documents/AgentOS`.
+  Claude's config is the ONLY thing AgentOS touches outside this folder (no global command, no PATH change).
+- **Hard rule for every agent: NEVER write to `data/` or the database (`data/agentos.db`, `data/store/`) directly** (no
+  `sqlite3`, no file writes there). Projects, tasks, files and Canvas artifacts are created ONLY with the AgentOS tools
+  (`agentos_*`). If those tools are missing, STOP and tell the person how to connect them («Connect AgentOS to Chat and
+  Cowork» below); a hand-written row or file looks broken in the web.
 
 ## Health check («revisa mi AgentOS»)
 
@@ -52,10 +58,36 @@ Run each from this folder; compare with the expected output. Stop at the first f
 | 6   | macOS: `grep -o 'plugins/agentos/server/src/mcp.mjs' "$HOME/Library/Application Support/Claude/claude_desktop_config.json"` · Windows: `Select-String -Path "$env:APPDATA\Claude\claude_desktop_config.json" -Pattern 'plugins\\\\agentos\\\\server'` | one match (Claude Desktop's `agentos` MCP points to this folder)                                                         |
 | 7   | `node scripts/build-roster.mjs`                                                                                                                                                                                                                       | `7 teams, 26 agents, 80 skills (1 plugin: agentos)`                                                                      |
 | 8   | In a NEW Claude session: «¿qué herramientas de AgentOS tienes?»                                                                                                                                                                                       | it lists `mcp__plugin_agentos_agentos__agentos_*` tools (27: tasks, files, leads, canvas, roster...)                     |
+| 9   | `curl -s http://localhost:4781/api/auth/status`                                                                                                                                                                                                       | the same JSON as check 2 (the web proxies the API: the browser only talks to 4781)                                       |
+| 10  | `curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:4780/mcp`                                                                                                                                                                          | `401`: the HTTP MCP for other clients is up and asks for its key (`./bin/agentos mcp-key` says where the key is)          |
+| 11  | Ask the person: Claude Desktop → Customize → Plugins shows `agentos` installed (or, fallback, Settings → Extensions shows «AgentOS» enabled); then in a NEW Cowork session: «¿Qué equipos y agentes tengo en AgentOS?»                                  | Claude answers with their teams and agents (it called `agentos_overview` or `agentos_roster`)                             |
 
 Check 8 from the terminal: `echo 'List your tools that start with mcp__plugin_agentos_agentos__ and print the count' |
 claude -p --agent agentos:sales-lead --allowedTools mcp__plugin_agentos_agentos` (prompt on stdin).
 If 1–8 pass, AgentOS is fine; ask the person what exactly looks wrong and use the table below.
+
+## Connect AgentOS to Chat and Cowork («conecta AgentOS a Cowork», «Cowork no ve AgentOS»)
+
+A plugin installed from the terminal (`claude plugin install`, what `install.sh` and `update` do) is for Claude Code only;
+Claude Desktop's Chat and Cowork load plugins from the person's account. Walk the person through it (you cannot click):
+
+1. **Plugin (recommended: agents, skills, hooks and the AgentOS tools).** Claude Desktop → **Customize** → **Plugins** →
+   **Add marketplace** → `SandPalace/agentos` → install **agentos**. Then open a NEW Cowork session and ask «¿Qué equipos y
+   agentes tengo en AgentOS?». The server should be running (`./bin/agentos start`); the tools try to start it themselves.
+2. **Fallback: the desktop extension** (only the AgentOS tools; also works in Chat). If step 1 is not possible or Cowork
+   still has no AgentOS tools: Claude Desktop → **Settings** → **Extensions** → **Install extension…** → choose
+   `dist/agentos.mcpb` in this folder (`./install.sh` and `./bin/agentos update` build it; or `node scripts/build-mcpb.mjs`).
+   When it asks for «Carpeta de AgentOS», choose this folder. Restart Claude Desktop.
+3. **Check:** Health check 11. If a tool answers «AgentOS está apagado…», run `./bin/agentos start`. If it answers «No
+   encuentro tu carpeta AgentOS…», fix the folder in Settings → Extensions → AgentOS.
+4. The web is http://localhost:4781 (also inside Cowork's browser: the page only talks to 4781). Agents return direct links
+   such as `http://localhost:4781/canvas?ws=<project>&artifact=<id>` that open the project and the card.
+
+### Other MCP clients (Codex, OpenCode, Cursor...)
+
+They connect over HTTP: URL `http://127.0.0.1:4780/mcp`, header `Authorization: Bearer <key>`. `./bin/agentos mcp-key`
+says where the key file is and how to copy it to the clipboard; the person pastes it into the client's config. Never print
+or paste the key in chat. Per-client examples: `docs/API.md`.
 
 ## Update («actualiza AgentOS»)
 
@@ -138,6 +170,7 @@ Below, OLD = this folder's current path, NEW = `$HOME/Documents/AgentOS` (Window
 | Symptom                                                                                               | Fix                                                                                                                                                                                                                                                                                                                                                                                            |
 | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `claude plugin list` has no `agentos@agentos`, or still lists `agentos-core@agentos`/`*-team@agentos` | `node scripts/migrate-plugins.mjs`; then restart Claude. If the marketplace is missing: `claude plugin marketplace add "$PWD"` and run it again                                                                                                                                                                                                                                                |
+| Cowork or Chat has no AgentOS tools, or Canvas does not show what an agent «made»                     | «Connect AgentOS to Chat and Cowork». If an agent wrote straight into `data/` or the DB, say so: that work must be redone through the tools; never patch rows by hand |
 | Agent says it has no AgentOS tools (`mcp__plugin_agentos_agentos__*`)                                 | Health check 4 and 2; the server starts by itself on the first session, else `./bin/agentos start`. Open a NEW session (tools load at start). Claude Desktop: check 6, then quit and reopen it. Agents listed in old project `.claude/agents/<id>.md` copies (Equipos → editor) may carry the old `mcp__plugin_agentos-core_agentos` in `tools`: replace it with `mcp__plugin_agentos_agentos` |
 | «El puerto 4780/4781 está ocupado»                                                                    | `./bin/agentos stop`; see who holds it: `lsof -nP -iTCP:4780 -sTCP:LISTEN` (Windows `Get-NetTCPConnection -LocalPort 4780`). Never kill a process you did not identify. Other ports: `AGENTOS_PORT=4790 AGENTOS_WEB_PORT=4791 ./bin/agentos start`                                                                                                                                             |
 | Web shows 400 errors, a blank page or old screens after an update                                     | Rebuild and restart: `./bin/agentos stop`, `(cd web && NEXT_PUBLIC_AGENTOS_PORT=4780 node node_modules/next/dist/bin/next build)`, `./bin/agentos start`; reload the browser (Cmd/Ctrl+Shift+R)                                                                                                                                                                                                |
@@ -177,6 +210,8 @@ review and submit it. Use it only for AgentOS faults, not for problems of the pe
 ## Never
 
 - Delete `data/`, `workspaces/`, `*.migrado-*` or `*.agentos-backup` unless the person asks.
+- Write to `data/` or the database directly (sqlite, file writes): only through the AgentOS tools.
+- Show `data/mcp-key` (the HTTP MCP key).
 - Show the contents of `data/.env` (it has the office password) or any key.
 - Run `git clean`, `git reset --hard`, `git checkout -- <file>`, a forced pull or similar in this folder; copy + delete
   this folder instead of `mv`.

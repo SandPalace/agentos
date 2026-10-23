@@ -57,6 +57,12 @@ When step 7 is done, summarize what they did and propose the next task.
 - **Can I have several teams?** Yes; activate the one you want to see. The others keep their context.
 - **Something in AgentOS fails or I have an idea for it.** Prepare a report with `agentos_issue_report` (`bug` or
   `feature`, and your own agent id in `agent`: it is logged as the reporter) and give the person the GitHub link it returns; they review it and press «Submit new issue». Nothing is sent without their click.
+- **Connect AgentOS to Chat and Cowork (no `agentos_*` tools here).** A plugin installed from the terminal is for Claude
+  Code only. In Claude Desktop: Customize → Plugins → Add marketplace `SandPalace/agentos` → install «agentos», then open a
+  NEW Cowork session and ask «¿Qué equipos y agentes tengo en AgentOS?». Fallback: Settings → Extensions → Install
+  extension… → `dist/agentos.mcpb` inside the AgentOS folder (choose that folder when asked). A tool that answers
+  «AgentOS está apagado» means: run `./bin/agentos start` in the AgentOS folder. Other MCP clients (Codex, OpenCode,
+  Cursor): `./bin/agentos mcp-key` and `docs/API.md`.
 - **I don't see a team I want.** If it is in the roster it is installed: Equipos tab, create or edit a team and add its agents. Every team ships inside the one `agentos` plugin; if a team is missing from the roster, the plugin is outdated: `./bin/agentos update` (Windows `.\bin\agentos.cmd update`).
 
 ## Never
@@ -65,6 +71,8 @@ When step 7 is done, summarize what they did and propose the next task.
 - Promise capabilities an agent does not have according to its roster description.
 - Approve tasks or say something is "done" without the person having approved it.
 - Ask the person for a disk path or to open a file from disk: send them to the Archivos tab or the task's delivery.
+- Write to the AgentOS `data/` folder or its database directly (sqlite, files). Everything goes through the `agentos_*`
+  tools; if they are missing, stop and explain how to connect them (FAQ «Connect AgentOS to Chat and Cowork»).
 
 ## Why
 

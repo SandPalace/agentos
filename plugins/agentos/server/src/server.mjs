@@ -20,7 +20,8 @@ import { createAgentDefs } from './agent-defs.mjs'
 import { createIssues } from './issues.mjs'
 import { createCanvas } from './canvas.mjs'
 import { createWhatsApp } from './whatsapp.mjs'
-import { createAuth, loadCredentials, looseFiles, parseCookie, cookieHeader, clearCookieHeader } from './auth.mjs'
+import { createAuth, loadCredentials, looseFiles, parseCookie, cookieHeader, clearCookieHeader, bearerOk, ensureMcpKey } from './auth.mjs'
+import { handle as mcpHandle } from './mcp.mjs'
 
 export const DEFAULT_PORT = Number(process.env.AGENTOS_PORT || 4780)
 const LOCAL_HOSTS = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/
@@ -28,7 +29,8 @@ const LOCAL_HOSTS = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/
 // `extraRoots`: carpetas adicionales desde las que se puede servir un archivo local (además de las raíces de los workspaces).
 // `blobs`: blob store local (blobstore.mjs). Por defecto vive en `blobsRoot` (o una carpeta temporal: createApp nunca toca ~/.agentos por su cuenta).
 // `limits`: topes de archivos (ver DEFAULT_LIMITS en files.mjs).
-export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [], blobs = null, blobsRoot = null, limits = {}, roster = null, auth: authOpt = false, whatsapp: waOpt = {}, agentDefs: defsOpt = {} } = {}) {
+export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [], blobs = null, blobsRoot = null, limits = {}, roster = null, auth: authOpt = false, whatsapp: waOpt = {}, agentDefs: defsOpt = {}, mcpKey = null } = {}) {
+  // `mcpKey`: bearer key of the HTTP MCP at /mcp (string or () => string). null = /mcp off (tests that do not need it).
   // `auth`: false (off), true (credentials from env/.env/config.json) or { credentials: () => ({ user, password }) | null } (tests).
   const store = createStore(db, { roster })
   const wa = createWhatsApp({ db, store, ...waOpt })
@@ -219,6 +221,28 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
     if (m === 'OPTIONS') return send(res, 204)
     // Escrituras sólo desde la web local o desde procesos sin Origin (MCP, curl): una página externa no puede escribir.
     if (m !== 'GET' && m !== 'HEAD' && origin && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) return send(res, 403, { error: 'origin_not_allowed' })
+
+    // ── MCP por HTTP (Streamable HTTP, sólo POST con respuesta JSON) para otros clientes: Codex, OpenCode, Cursor... ──
+    // Mismas herramientas que el MCP por stdio (mcp.mjs `handle`), con llave Bearer de data/mcp-key en vez de sesión.
+    if (path === '/mcp') {
+      if (origin && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) return send(res, 403, { error: 'origin_not_allowed' })
+      const key = typeof mcpKey === 'function' ? mcpKey() : mcpKey
+      if (!key) return send(res, 503, { error: 'mcp_off', message: 'El MCP por HTTP no está activo en este servidor.' })
+      if (!bearerOk(req.headers.authorization, key)) return send(res, 401, { error: 'unauthorized', message: 'Falta la llave de AgentOS: Authorization: Bearer <contenido de data/mcp-key>. Corre ./bin/agentos mcp-key para ver cómo copiarla.' }, { 'www-authenticate': 'Bearer realm="agentos"' })
+      if (m !== 'POST') return send(res, 405, { error: 'method_not_allowed', message: 'Este MCP sólo acepta POST (sin stream SSE).' }, { allow: 'POST' })
+      const body = await readJson(req, Math.ceil(lim.maxFileBytes * 1.4) + 65536)
+      const hdr = (n) => String(req.headers[n] ?? '').trim() || null
+      const ctx = {
+        base: `http://127.0.0.1:${req.socket.localPort}`,
+        scope: () => (hdr('x-agentos-workspace') ? { 'x-agentos-workspace': hdr('x-agentos-workspace') } : {}),
+        agent: () => hdr('x-agentos-agent'),
+        ensure: false,
+      }
+      const msgs = Array.isArray(body) ? body : [body]
+      const out = (await Promise.all(msgs.map((x) => (x && typeof x === 'object' ? mcpHandle(x, ctx) : { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } })))).filter(Boolean)
+      if (!out.length) { res.writeHead(202); return res.end() } // sólo notificaciones
+      return send(res, 200, Array.isArray(body) ? out : out[0])
+    }
 
     // ── autenticación de la web ──
     // Una petición de navegador (lleva Origin o Sec-Fetch-Site) necesita sesión; los procesos locales (hooks, MCP, curl) no.
@@ -510,7 +534,7 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
     if (m === 'GET' && path === '/api/events') return send(res, 200, store.recentEvents(Number(url.searchParams.get('limit')) || 100, ws))
     if (m === 'GET' && path === '/api/stream') {
       const w = store.needWorkspace(ws)
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' })
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' }) // no-transform: a proxy (Next on 4781) must not gzip-buffer the stream
       res.write(`event: snapshot\ndata: ${JSON.stringify({ workspace: { id: w.id, name: w.name }, workspaces: store.listWorkspaces(), sessions: store.listSessions(ws), tasks: store.listTasks(ws), leads: store.listLeads(ws), teams: store.listTeams(ws), system: store.listSystemAgents(ws) })}\n\n`)
       sse.set(res, ws)
       const ping = setInterval(() => res.write(': ping\n\n'), 20000)
@@ -665,11 +689,12 @@ export function createApp({ db = openDb(), port = DEFAULT_PORT, extraRoots = [],
 }
 
 if (isMain(import.meta.url)) {
-  const app = createApp({ auth: process.env.AGENTOS_AUTH !== 'off', blobsRoot: join(agentosHome(), 'store') })
+  const app = createApp({ auth: process.env.AGENTOS_AUTH !== 'off', blobsRoot: join(agentosHome(), 'store'), mcpKey: () => ensureMcpKey() })
   const p = await app.listen()
   console.log(`AgentOS escuchando en http://127.0.0.1:${p}`)
   // La carpeta del proyecto por defecto (workspaces/default) debe existir: ahí se abren las sesiones de Claude del proyecto.
   try { mkdirSync(defaultWorkspaceRoot(), { recursive: true }) } catch (e) { console.log(`No pude crear ${defaultWorkspaceRoot()}: ${e.message}`) }
+  try { ensureMcpKey() } catch (e) { console.log(`No pude crear la llave del MCP por HTTP: ${e.message}`) } // data/mcp-key (0600), nunca se imprime
   // En segundo plano: el servidor ya atiende.
   app.startBackground((m) => console.log(m))
   if (process.env.AGENTOS_AUTH !== 'off') {

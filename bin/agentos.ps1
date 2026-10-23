@@ -252,8 +252,27 @@ function Invoke-Update {
   Say '4/4 Actualizando el plugin agentos en Claude (y migrando desde los 7 plugins viejos si hace falta)...'
   & node (Join-Path $REPO 'scripts\migrate-plugins.mjs')
   if ($LASTEXITCODE -ne 0) { Say 'Aviso: la migracion de plugins no termino. Vuelve a correr .\bin\agentos.cmd update o mira "Actualizar" en CLAUDE.md.' }
+  & node (Join-Path $REPO 'scripts\build-mcpb.mjs') *> $null   # dist\agentos.mcpb: extension de Claude Desktop (respaldo)
   Say 'Listo. Reinicia tus sesiones de Claude (y Claude Desktop) para cargar los cambios.'
   if ($wasWeb) { Invoke-Start }
+}
+
+# Llave del MCP por HTTP (http://127.0.0.1:$PORT/mcp) para Codex, OpenCode, Cursor u otro cliente MCP.
+# La crea si falta (data\mcp-key) y dice donde esta; nunca la imprime.
+function Invoke-McpKey {
+  $f = Join-Path $AGENTOS_HOME 'mcp-key'
+  $auth = ([System.Uri](Join-Path $REPO 'plugins\agentos\server\src\auth.mjs')).AbsoluteUri
+  & node --input-type=module -e "const m = await import(process.argv[1]); m.ensureMcpKey()" $auth
+  if ($LASTEXITCODE -ne 0) { Say "No pude crear la llave en $f."; exit 1 }
+  Say "Llave del MCP de AgentOS: $f"
+  Say '(no la compartas ni la pegues en un chat; solo va en la configuracion de tu cliente MCP)'
+  Say ''
+  Say "Copiala al portapapeles:  Get-Content '$f' | Set-Clipboard"
+  Say ''
+  Say 'En tu cliente MCP agrega un servidor HTTP:'
+  Say "  URL:     http://127.0.0.1:$PORT/mcp"
+  Say '  Header:  Authorization: Bearer <pega aqui la llave>'
+  Say 'Guia por cliente (Codex, OpenCode, Cursor): docs\API.md'
 }
 
 switch ($Command) {
@@ -261,6 +280,7 @@ switch ($Command) {
   'stop'   { Invoke-Stop }
   'status' { Invoke-Status }
   'update' { Invoke-Update }
+  'mcp-key' { Invoke-McpKey }
   'whatsapp' { Invoke-WhatsApp $Rest }
-  default  { Say 'Uso: bin\agentos.cmd {start|stop|status|update|whatsapp [--reset]}'; exit 2 }
+  default  { Say 'Uso: bin\agentos.cmd {start|stop|status|update|mcp-key|whatsapp [--reset]}'; exit 2 }
 }

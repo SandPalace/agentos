@@ -15,7 +15,7 @@
 //
 // Sessions: 32 random bytes in an HttpOnly cookie; only their SHA-256 is stored, together with a fingerprint of the credentials.
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto'
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs'
 import { agentosHome } from './paths.mjs'
 import { join } from 'node:path'
 import { AppError } from './store.mjs'
@@ -78,6 +78,29 @@ export function loadCredentials({ env = process.env, home = agentosHome({ env })
 export function looseFiles(creds) {
   if (!creds || process.platform === 'win32') return []
   return creds.files.filter((f) => { try { return (statSync(f).mode & 0o077) !== 0 } catch { return false } })
+}
+
+// ── MCP over HTTP (/mcp) ──
+// Other MCP clients (Codex, OpenCode, Cursor...) reach AgentOS at http://127.0.0.1:4780/mcp with
+// `Authorization: Bearer <key>`. The key is random, lives only in data/mcp-key (owner-only, 0600) and is never printed.
+export const mcpKeyFile = (home = agentosHome()) => join(home, 'mcp-key')
+
+/** Reads the key, creating it (0600) the first time. */
+export function ensureMcpKey(home = agentosHome()) {
+  const f = mcpKeyFile(home)
+  const have = readOptional(f)?.trim()
+  if (have) return have
+  mkdirSync(home, { recursive: true })
+  const key = randomBytes(32).toString('base64url')
+  writeFileSync(f, key + '\n', { mode: 0o600 })
+  try { chmodSync(f, 0o600) } catch { /* Windows */ }
+  return key
+}
+
+/** Constant-time check of an `Authorization: Bearer ...` header against the key. */
+export const bearerOk = (header, key) => {
+  const m = /^Bearer\s+(.+)$/i.exec(String(header ?? '').trim())
+  return !!key && !!m && same(m[1].trim(), key)
 }
 
 export const SETUP_HELP = 'Crea el archivo data/.env (dentro de la carpeta de AgentOS) con dos líneas: AGENTOS_USER=tu-usuario y AGENTOS_PASSWORD=tu-contraseña'
