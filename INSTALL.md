@@ -19,7 +19,7 @@ Esta guía es para macOS (Linux es igual). Para Windows, ve a la sección **Wind
    ```
    Todo lo que AgentOS crea (datos, proyectos, logs, usuario y contraseña) se queda **dentro de esa carpeta**
    (`data/` para los datos y `workspaces/` para tus workspaces); no se instala nada en tu sistema (ni comandos globales, ni cambios al PATH). Esas dos carpetas nunca se suben a Git. Lo único fuera de la carpeta: la configuración de Claude, para que encuentre tus agentes.
-   GitHub te pedirá iniciar sesión. Si pide contraseña, usa un *Personal Access Token*
+   GitHub te pedirá iniciar sesión. Si pide contraseña, usa un _Personal Access Token_
    (GitHub > Settings > Developer settings > Tokens) o instala la app `gh` y corre `gh auth login`.
 3. **Instala** (tarda unos minutos, necesita internet):
    ```
@@ -49,8 +49,20 @@ Desde la carpeta de AgentOS:
 ```
 ./bin/agentos update
 ```
+
 Descarga la versión nueva, recompila y actualiza el plugin `agentos` (si tenías la versión de 7 plugins, los quita y deja
 uno solo; también corrige el permiso de Claude y Claude Desktop). Después reinicia Claude. Puedes repetirlo sin riesgo.
+
+**Tu trabajo está a salvo al actualizar.** Todo lo que creas vive en `data/` (base de datos, archivos, entregas, tu
+contraseña) y en `workspaces/` (las carpetas de tus proyectos, con los agentes que editas en Equipos). Git ignora esas dos
+carpetas, así que actualizar (`git pull --ff-only` + `./bin/agentos update`) nunca las toca. Solo si cambiaste a mano un
+archivo que viene del repo (por ejemplo un agente en `plugins/agentos/agents/`), `git pull` se detiene: Claude te lo
+enseña y te pregunta si lo guardas aparte (`git stash`) o lo conservas. Nunca uses `git reset --hard`, `git clean` ni
+fuerces el pull.
+
+**¿Tu AgentOS está en otra carpeta** (por ejemplo `~/AgentOS-app`, de la versión del 15 de octubre)? Abre Claude en esa
+carpeta y dile **«mueve AgentOS a Documentos»**: la detiene, la mueve a `Documentos/AgentOS` (con tus datos), vuelve a
+correr el instalador para que Claude Code y Claude Desktop apunten a la carpeta nueva y limpia lo viejo preguntándote.
 
 ## Revisar que todo esté bien
 

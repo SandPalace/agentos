@@ -6,6 +6,22 @@ param([Parameter(Position = 0)][string]$Command = '', [Parameter(ValueFromRemain
 $ErrorActionPreference = 'Continue'
 
 $REPO = Split-Path -Parent $PSScriptRoot
+# Si moviste esta carpeta, Claude todavia pasa las rutas viejas (AGENTOS_HOME/AGENTOS_ROOT de su configuracion) hasta que
+# corres install.ps1 y lo reinicias: la carpeta data\ o workspaces\ de OTRA ubicacion de AgentOS no vale aqui (misma
+# regla que install.ps1 y foreignPath() en scripts\migrate-plugins.mjs).
+function Test-ForeignDir($p, $sub) {
+  if (-not $p) { return $false }
+  try { $full = [System.IO.Path]::GetFullPath($p).TrimEnd('\', '/') } catch { return $false }
+  if ((Split-Path -Leaf $full) -ne $sub) { return $false }
+  $x = Split-Path -Parent $full
+  if ($x.TrimEnd('\', '/') -ieq $REPO.TrimEnd('\', '/')) { return $false }
+  if (Test-Path (Join-Path $x '.claude-plugin\marketplace.json')) { return $true }
+  if (-not (Test-Path $x)) { return $true }
+  $other = @(Get-ChildItem -Force -LiteralPath $x -ErrorAction SilentlyContinue | Where-Object { @('data', 'workspaces', '.DS_Store') -notcontains $_.Name })
+  return ($other.Count -eq 0)
+}
+if (Test-ForeignDir $env:AGENTOS_HOME 'data') { Remove-Item Env:\AGENTOS_HOME -ErrorAction SilentlyContinue }
+if (Test-ForeignDir $env:AGENTOS_ROOT 'workspaces') { Remove-Item Env:\AGENTOS_ROOT -ErrorAction SilentlyContinue }
 # Datos en <repo>\data y workspaces en <repo>\workspaces (misma regla que el servidor: si solo existen las
 # carpetas de una instalacion anterior, %USERPROFILE%\.agentos / \AgentOS, se siguen usando hasta migrarlas).
 $legacyHome = Join-Path $env:USERPROFILE '.agentos'

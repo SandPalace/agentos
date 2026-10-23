@@ -32,6 +32,15 @@ git pull --ff-only
 
 Después cierra y abre Claude Desktop. Puedes repetir `./bin/agentos update` las veces que quieras: no rompe nada.
 
+### Tu trabajo está a salvo al actualizar
+
+Tus datos (`data/`: base de datos, archivos, entregas, contraseña) y tus proyectos (`workspaces/`, con los agentes que
+editas en Equipos) están ignorados por git: `git pull --ff-only` y `./bin/agentos update` nunca los tocan. Si cambiaste a
+mano un archivo que viene del repo, el pull se detiene y Claude te pregunta si lo guardas aparte (`git stash`) o lo
+conservas; nunca borra tus cambios (nada de `git reset --hard`, `git clean` ni pull forzado).
+
+¿Instalaste AgentOS en otra carpeta (por ejemplo `~/AgentOS-app`)? Pídele a Claude **«mueve AgentOS a Documentos»**.
+
 ## Si algo falla
 
 Abre Claude en la carpeta de AgentOS y dile:

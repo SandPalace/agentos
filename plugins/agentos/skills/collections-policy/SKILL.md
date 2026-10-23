@@ -14,7 +14,8 @@ allowed-tools: mcp__plugin_agentos_agentos
    - usual credit terms (payment days) and collection methods (SPEI, cash, card);
    - what document backs the credit (contract, promissory note (pagaré), invoice only) and **whether it provides for late-payment
      interest or legal action**, with the verbatim clause;
-   - channels and authorized contact per client; hours (default 9:00-19:00 Mon-Sat);
+   - channels and authorized contact per client; hours (default 9:00-19:00 Mon-Sat); minimum days between two
+     messages to the same client (default 3; `payment-reminder` enforces it with its log);
    - key or sensitive clients that always go through them;
    - who authorizes discounts and payment plans (always the person).
 3. **Set the contact calendar** by days overdue (upcoming, 1-7, 8-30, 31-60, 60+) and the tone of
@@ -36,7 +37,7 @@ Late-payment interest: none confirmed · Legal action: not mentioned in messages
 | 31-60 | follow-up | firm | person |
 | 60+ | call by the person | final notice, no threats | person |
 
-Fixed rules: hours 9:00-19:00 Mon-Sat; only the client (never family or employer);
+Fixed rules: hours 9:00-19:00 Mon-Sat; at least 3 days between messages to the same client; only the client (never family or employer);
 discounts and plans: the person authorizes them. Key clients: Example Client A.
 ```
 

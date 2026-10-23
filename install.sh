@@ -11,6 +11,21 @@ PLUGIN="agentos"   # un solo plugin con todos los agentes y skills; los equipos 
 # Marca para web/package.json (postinstall): el instalador migra los plugins él mismo.
 export AGENTOS_LAUNCHER=2
 PORT="${AGENTOS_PORT:-4780}"
+# Si moviste esta carpeta, Claude todavía pasa las rutas viejas (AGENTOS_HOME/AGENTOS_ROOT de su configuración) a lo
+# que corre: la carpeta data/ o workspaces/ de OTRA ubicación de AgentOS (otra copia, una que ya no existe o el residuo
+# que dejó un hook) no vale aquí. Una ruta propia (otro nombre, o una carpeta con más cosas) se respeta.
+# Misma regla que foreignPath() en scripts/migrate-plugins.mjs y que bin/agentos.
+foreign_dir() { # <ruta> <data|workspaces>
+  local x; [ "$(basename "$1")" = "$2" ] || return 1; x="$(dirname "$1")"
+  [ -d "$x" ] && [ "$(cd "$x" && pwd -P)" = "$(cd "$REPO" && pwd -P)" ] && return 1
+  [ -f "$x/.claude-plugin/marketplace.json" ] || [ ! -d "$x" ] || [ -z "$(ls -A "$x" 2>/dev/null | grep -vxE 'data|workspaces|\.DS_Store')" ]
+}
+if [ -n "${AGENTOS_HOME:-}" ] && foreign_dir "$AGENTOS_HOME" data; then
+  printf '    !!  Ignoro AGENTOS_HOME=%s (es de otra ubicación de AgentOS); uso esta carpeta.\n' "$AGENTOS_HOME"; unset AGENTOS_HOME
+fi
+if [ -n "${AGENTOS_ROOT:-}" ] && foreign_dir "$AGENTOS_ROOT" workspaces; then
+  printf '    !!  Ignoro AGENTOS_ROOT=%s (es de otra ubicación de AgentOS); uso esta carpeta.\n' "$AGENTOS_ROOT"; unset AGENTOS_ROOT
+fi
 # Todo vive dentro de esta carpeta: datos en <repo>/data y workspaces en <repo>/workspaces.
 # Si hay datos de una instalación anterior (~/.agentos, ~/AgentOS) y aún no existen los nuevos, el servidor
 # sigue usando los viejos hasta que los migres; aquí hacemos lo mismo para no apuntar a una carpeta vacía.
@@ -81,16 +96,19 @@ ok "Web compilada"
 
 # 4. Plugin
 step "4/7 Registrando el plugin agentos en Claude Code"
+# Todo en un solo lugar (scripts/migrate-plugins.mjs, el mismo que usa ./bin/agentos update): registra el marketplace
+# '$MKT' en esta carpeta (si apuntaba a otra, p. ej. porque moviste la carpeta, lo quita y lo vuelve a agregar), quita
+# los 7 plugins viejos, instala o actualiza $PLUGIN@$MKT, y si las rutas de AgentOS en ~/.claude/settings.json, en
+# Claude Desktop o en la base apuntan a la ubicación anterior de esta carpeta, las corrige (respaldo .agentos-backup).
+MIG_FLAGS=""
+[ "$DO_SETTINGS" = 1 ] || MIG_FLAGS="$MIG_FLAGS --no-settings"
+[ "$DO_DESKTOP" = 1 ] || MIG_FLAGS="$MIG_FLAGS --no-desktop"
 if [ "$DO_CLI" = 1 ] && [ "$HAVE_CLAUDE" = 1 ]; then
-  if claude plugin marketplace list 2>/dev/null | grep -q "$MKT"; then
-    claude plugin marketplace update "$MKT" >/dev/null 2>&1 || true
-    ok "Marketplace '$MKT' ya existía (actualizado)"
-  else
-    claude plugin marketplace add "$REPO" || die "No pude registrar el marketplace."
-    ok "Marketplace registrado"
-  fi
-  # Quita los 7 plugins de versiones anteriores (si los hay) e instala o actualiza agentos@agentos.
-  node "$REPO/scripts/migrate-plugins.mjs" --plugins-only || warn "No pude dejar listo $PLUGIN@$MKT (pruébalo a mano: claude plugin install $PLUGIN@$MKT)"
+  # shellcheck disable=SC2086
+  node "$REPO/scripts/migrate-plugins.mjs" $MIG_FLAGS || warn "No pude dejar listo $PLUGIN@$MKT (pruébalo a mano: claude plugin marketplace add \"$REPO\" y claude plugin install $PLUGIN@$MKT)"
+elif [ "$DO_SETTINGS" = 1 ] || [ "$DO_DESKTOP" = 1 ]; then
+  # shellcheck disable=SC2086
+  node "$REPO/scripts/migrate-plugins.mjs" --no-claude $MIG_FLAGS || true
 else ok "Omitido"; fi
 
 # 5. Claude Desktop

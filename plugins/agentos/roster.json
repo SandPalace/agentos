@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-23T00:35:02.915Z",
+  "generated_at": "2026-10-23T01:24:14.531Z",
   "plugins": [
     {
       "id": "agentos-core",
@@ -70,7 +70,7 @@
         },
         {
           "id": "payment-reminder",
-          "description": "Drafts a payment reminder or collection message (email or WhatsApp) with an escalating tone based on the invoice's days overdue. Use it when there are upcoming or overdue invoices that require contacting the client; the message is never sent."
+          "description": "Writes payment reminders and payment notifications for clients (WhatsApp or email) - upcoming due date, overdue with an escalating tone (N0-N3), payment received, and installments of an agreed payment plan - from the revenue ledger's portfolio or an uploaded invoice list, respecting a contact log a…"
         }
       ]
     },

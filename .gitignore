@@ -13,3 +13,7 @@ test-results/
 # Datos locales de AgentOS: nunca se suben.
 /data/
 /workspaces/
+# Lo que Claude crea al abrir esta carpeta como proyecto (permisos «Permitir siempre», notas locales, agentes copiados
+# si un proyecto apunta a esta carpeta): es de la persona, nunca se sube ni se pisa al actualizar.
+/.claude/
+/CLAUDE.local.md

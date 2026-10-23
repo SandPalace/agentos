@@ -10,6 +10,16 @@ while [ -L "$SELF" ]; do
 done
 REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
 
+# Si moviste esta carpeta, Claude todavía pasa las rutas viejas (AGENTOS_HOME/AGENTOS_ROOT de su configuración) hasta que
+# corres ./install.sh y lo reinicias: la carpeta data/ o workspaces/ de OTRA ubicación de AgentOS no vale aquí (misma
+# regla que install.sh y foreignPath() en scripts/migrate-plugins.mjs).
+foreign_dir() { # <ruta> <data|workspaces>
+  local x; [ "$(basename "$1")" = "$2" ] || return 1; x="$(dirname "$1")"
+  [ -d "$x" ] && [ "$(cd "$x" && pwd -P)" = "$(cd "$REPO" && pwd -P)" ] && return 1
+  [ -f "$x/.claude-plugin/marketplace.json" ] || [ ! -d "$x" ] || [ -z "$(ls -A "$x" 2>/dev/null | grep -vxE 'data|workspaces|\.DS_Store')" ]
+}
+if [ -n "${AGENTOS_HOME:-}" ] && foreign_dir "$AGENTOS_HOME" data; then unset AGENTOS_HOME; fi
+if [ -n "${AGENTOS_ROOT:-}" ] && foreign_dir "$AGENTOS_ROOT" workspaces; then unset AGENTOS_ROOT; fi
 # Datos en <repo>/data y workspaces en <repo>/workspaces (misma regla que el servidor: si solo existen las
 # carpetas de una instalación anterior, ~/.agentos / ~/AgentOS, se siguen usando hasta migrarlas).
 if [ -z "${AGENTOS_HOME:-}" ] && [ -d "$HOME/.agentos" ] && [ ! -d "$REPO/data" ]; then AGENTOS_HOME="$HOME/.agentos"; fi
@@ -52,7 +62,8 @@ cmd_start() {
   if web_up; then say "Oficina web ya estaba corriendo (puerto $WEB_PORT)."
   else
     if [ -n "$(port_pid "$WEB_PORT")" ]; then say "El puerto $WEB_PORT está ocupado por otro programa. Usa AGENTOS_WEB_PORT=otro-puerto ./bin/agentos start."; exit 1; fi
-    (cd "$REPO/web" && nohup node "$NEXT_BIN" start -p "$WEB_PORT" -H 127.0.0.1 >>"$LOGS/web.log" 2>&1 </dev/null & echo $! >"$RUN/web.pid")
+    # Only node goes to the background (not a subshell that would keep this command's output open: Claude waits on it).
+    (cd "$REPO/web" || exit 1; nohup node "$NEXT_BIN" start -p "$WEB_PORT" -H 127.0.0.1 >>"$LOGS/web.log" 2>&1 </dev/null & echo $! >"$RUN/web.pid")
     for _ in $(seq 1 80); do web_up && break; sleep 0.25; done
     web_up || { say "La web no arrancó. Revisa $LOGS/web.log"; exit 1; }
     say "Oficina web iniciada (puerto $WEB_PORT)."

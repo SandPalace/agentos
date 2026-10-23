@@ -16,6 +16,20 @@ update, check or repair AgentOS («revisa y repara mi AgentOS», «actualiza Age
 | Launcher                                                                                                          | `./bin/agentos start\|stop\|status\|update\|whatsapp` |                |
 
 - `data/` and `workspaces/` are git-ignored: never uploaded, never deleted by an update.
+
+### Your work is safe («¿se borra mi trabajo si actualizo?»)
+
+An update (`git pull --ff-only` + `./bin/agentos update`) never overwrites the person's work. Everything they create
+lives in `data/` (database, files, deliveries, web password, logs, WhatsApp) and `workspaces/` (every project folder,
+including the `.claude/agents/<id>.md` copies the **Equipos** editor saves per project): both are ignored by git, so a
+pull does not touch them, and the installer and `update` only add what is missing. The only risk is a file that comes
+from the repo and the person edited (e.g. an agent in `plugins/agentos/agents/`): `git status --porcelain` shows it. Then
+STOP and ask: keep their version aside with `git stash push -m "mis cambios <fecha>"` (and `git stash pop` after the
+update if they want it back), or keep it and skip the update. Never `git reset --hard`, `git clean`, `git checkout --
+<file>`, `git pull --force`/`git fetch` + reset, or delete-and-reclone. If `git pull --ff-only` refuses («Not possible to
+fast-forward», «would be overwritten by merge», «untracked working tree files would be overwritten»), explain it in one
+line, show the files it names and ask; never force it.
+
 - **One plugin, `agentos@agentos`.** Teams (Marketing, Ventas, Cobranza, Dirección, Finanzas, Desarrollo web) are a
   feature of the app: the person builds teams in the **Equipos** tab from the roster. Versions before 2026-10-22 had 7
   plugins (`agentos-core`, `marketing-team`, `sales-team`, `collections-team`, `executive-team`, `finance-team`,
@@ -45,14 +59,21 @@ If 1–8 pass, AgentOS is fine; ask the person what exactly looks wrong and use 
 
 ## Update («actualiza AgentOS»)
 
-1. **Local changes.** `git status --porcelain`. Files changed that come from the repo (not `data/`/`workspaces/`): do not
-   discard them; show them and ask whether to keep them with `git stash`.
+0. **Where is it?** If this folder is not `~/Documents/AgentOS` (e.g. `~/AgentOS-app`), offer «Moving AgentOS to
+   Documents» first (optional; an update works anywhere).
+1. **Local changes.** `git status --porcelain`. An update never overwrites the person's work (see «Your work is safe»):
+   `data/` and `workspaces/` never show up there. Files changed that come from the repo: do not discard them; show them
+   and ask whether to keep them aside with `git stash push -m "mis cambios <fecha>"` or to stop. Never `git reset
+--hard`, `git clean`, `git checkout -- <file>` or a forced pull.
 2. **Pull first, then update.** `./bin/agentos stop`, `git pull --ff-only`, then `./bin/agentos update`. (Pull first: an
-   old launcher is replaced while it runs.) `update` prints 4 steps: pull, stop, `npm ci` + web build, plugin. Step 4
+   old launcher is replaced while it runs.) If `git pull --ff-only` refuses, do not force it: explain, show the files it
+   names, ask. `update` prints 4 steps: pull, stop, `npm ci` + web build, plugin. Step 4
    runs `node scripts/migrate-plugins.mjs`, which: uninstalls each old `<team>@agentos` plugin, refreshes the
-   marketplace, installs or updates `agentos@agentos`, rewrites the old allow rule `mcp__plugin_agentos-core_agentos` →
-   `mcp__plugin_agentos_agentos` in `~/.claude/settings.json`, and points Claude Desktop's `agentos` MCP to
-   `plugins/agentos/server/src/mcp.mjs` (backups `*.agentos-backup`; every other setting is kept).
+   marketplace (or re-registers it here if it pointed to another folder), installs or updates `agentos@agentos`,
+   rewrites the old allow rule `mcp__plugin_agentos-core_agentos` → `mcp__plugin_agentos_agentos` in
+   `~/.claude/settings.json`, points Claude Desktop's `agentos` MCP to `plugins/agentos/server/src/mcp.mjs`, and fixes
+   `AGENTOS_HOME`/`AGENTOS_ROOT` and saved project paths that still point to an old location of this folder (backups
+   `*.agentos-backup`; every other setting is kept).
 3. **Old launcher.** If the person ran an old `./bin/agentos update` directly, the migration still runs (from the web
    install step) and they may see 7 «Plugin "…" not found in marketplace» errors: expected, harmless.
 4. **Stopped halfway?** Everything is idempotent; re-run what failed:
@@ -80,6 +101,37 @@ agentos`, `claude plugin install agentos@agentos`.
    shows the teams.
 8. **Backups.** Only after the person confirms everything works, suggest deleting `*.migrado-<date>` and `*.agentos-backup`.
    Never delete them yourself.
+
+## Moving AgentOS to Documents («mueve AgentOS a Documentos», «mi AgentOS está en otra carpeta»)
+
+For an install outside `~/Documents/AgentOS` (Windows: `Documents\AgentOS`; the Oct 15 version used `~/AgentOS-app`).
+Below, OLD = this folder's current path, NEW = `$HOME/Documents/AgentOS` (Windows `[Environment]::GetFolderPath('MyDocuments')`
+
+- `\AgentOS`; Documents may be in OneDrive). Explain the plan in two lines and get the person's OK first. Moving keeps
+  everything: the folder carries `data/` and `workspaces/` with it.
+
+1. **Stop it.** From OLD: `./bin/agentos stop`; an Oct 15 install may also have the global command: `agentos stop`
+   (if `command -v agentos` finds it). Check nothing answers: `curl -s -m 2 http://localhost:4780/health` prints nothing.
+2. **Move it** (never copy + delete). First `ls -ld "$HOME/Documents/AgentOS"`: if it exists, STOP and ask (it may be a
+   second copy; compare `git log -1 --format=%cd` and the date of `data/agentos.db` in each; never merge or overwrite).
+   Then `mv "OLD" "$HOME/Documents/AgentOS"` (Windows `Move-Item -LiteralPath "OLD" "NEW"`). This session's folder no
+   longer exists: from now on start every command with `cd "$HOME/Documents/AgentOS" &&`.
+3. **Re-install from NEW:** `./install.sh` (Windows `powershell -ExecutionPolicy Bypass -File .\install.ps1`). It keeps
+   `data/` (login, database) and re-points Claude to NEW: the `agentos` marketplace (removed and added again if it pointed
+   to OLD) and `agentos@agentos`, Claude Desktop's `mcpServers.agentos`, `AGENTOS_HOME`/`AGENTOS_ROOT` in
+   `~/.claude/settings.json` and the project paths saved in the database (backups `*.agentos-backup`). It ignores the old
+   paths this session still carries (expected line: «Ignoro AGENTOS_HOME=… (es de otra ubicación de AgentOS)»).
+4. **Old layout?** If `~/.agentos` or `~/AgentOS` exist, run Update step 5 now: `node scripts/migrate-to-project-folder.mjs`
+   (plan), then with the person's OK `node scripts/migrate-to-project-folder.mjs --yes`.
+5. **Old launcher leftovers:** Update step 6 (symlink `~/.local/bin/agentos` → OLD, `PATH` line in `~/.zshrc`/`~/.bashrc`);
+   ask before removing each. A symlink to OLD is broken now (`ls -l` shows the old target): it is safe to remove with OK.
+6. **Leftover at OLD.** A Claude session opened before step 3 may have recreated `OLD/data` (an empty server log or
+   database). `ls -A "OLD"`: if it holds only `data`/`workspaces`, tell the person it is an empty leftover and remove it
+   only with their OK; anything else there, ask.
+7. **Restart and check.** `./bin/agentos stop` (it also stops a server started from the old path), `./bin/agentos start`,
+   then the Health check (check 6 must show NEW). Ask the person to quit Claude Desktop completely, reopen it, open NEW as
+   the project in the Code tab (File → Open folder / choose `Documents/AgentOS`) and start a new session; old sessions
+   still point to OLD. Then confirm in http://localhost:4781 that their projects, tasks, leads and files are there.
 
 ## Troubleshooting
 
@@ -110,6 +162,9 @@ If the same command fails twice the same way, stop: show the exact error and ask
   (`plugins/agentos/skills/revenue-ledger/`); tax content is indicative, always validated with the accountant.
 - **WhatsApp with OpenWA** (optional, self-hosted under `data/openwa/`): sales team (`sales-lead`), skill `openwa-setup`;
   agents may send only after the person's OK for each message.
+- **Payment reminders and notices** (upcoming, overdue N0-N3, payment received, plan installments): Cobranza
+  (`collections-agent`), skill `payment-reminder`; drafts always, WhatsApp sends through OpenWA only with the person's OK per
+  message, 9:00-19:00 Mon-Sat, 3-day cooldown per client, log in `collections/reminders-log.csv` (Archivos).
 - **Vista oficina** (3D office): optional; toggled with the «Vista oficina» button in the header, remembered per browser.
 - **Teams**: Equipos tab (the app); roster of agents per team in `plugins/agentos/teams/*/team.json`.
 
@@ -123,6 +178,7 @@ review and submit it. Use it only for AgentOS faults, not for problems of the pe
 
 - Delete `data/`, `workspaces/`, `*.migrado-*` or `*.agentos-backup` unless the person asks.
 - Show the contents of `data/.env` (it has the office password) or any key.
-- Run `git clean -x`, `git reset --hard` or similar in this folder.
+- Run `git clean`, `git reset --hard`, `git checkout -- <file>`, a forced pull or similar in this folder; copy + delete
+  this folder instead of `mv`.
 - Kill processes you did not identify as AgentOS (check the port owner first).
 - Edit Claude's config beyond what this runbook says (allow rule, `env`, Claude Desktop `mcpServers.agentos`).

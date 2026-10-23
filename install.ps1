@@ -28,6 +28,29 @@ $WEB_PORT = if ($env:AGENTOS_WEB_PORT) { $env:AGENTOS_WEB_PORT } else { '4781' }
 # Todo vive dentro de esta carpeta: datos en <repo>\data y workspaces en <repo>\workspaces.
 # Si hay datos de una instalacion anterior y aun no existen los nuevos, el servidor sigue usando los viejos
 # hasta que los migres; aqui hacemos lo mismo para no apuntar a una carpeta vacia.
+# Si moviste esta carpeta, Claude todavia pasa las rutas viejas (AGENTOS_HOME/AGENTOS_ROOT de su configuracion): la
+# carpeta data\ o workspaces\ de OTRA ubicacion de AgentOS (otra copia, una que ya no existe o el residuo que dejo un
+# hook) no vale aqui. Una ruta propia (otro nombre, o una carpeta con mas cosas) se respeta.
+# Misma regla que foreignPath() en scripts\migrate-plugins.mjs y que bin\agentos.ps1.
+function Test-ForeignDir($p, $sub) {
+  if (-not $p) { return $false }
+  try { $full = [System.IO.Path]::GetFullPath($p).TrimEnd('\', '/') } catch { return $false }
+  if ((Split-Path -Leaf $full) -ne $sub) { return $false }
+  $x = Split-Path -Parent $full
+  if ($x.TrimEnd('\', '/') -ieq $REPO.TrimEnd('\', '/')) { return $false }
+  if (Test-Path (Join-Path $x '.claude-plugin\marketplace.json')) { return $true }
+  if (-not (Test-Path $x)) { return $true }
+  $other = @(Get-ChildItem -Force -LiteralPath $x -ErrorAction SilentlyContinue | Where-Object { @('data', 'workspaces', '.DS_Store') -notcontains $_.Name })
+  return ($other.Count -eq 0)
+}
+if (Test-ForeignDir $env:AGENTOS_HOME 'data') {
+  Write-Host "    !!  Ignoro AGENTOS_HOME=$($env:AGENTOS_HOME) (es de otra ubicacion de AgentOS); uso esta carpeta." -ForegroundColor Yellow
+  Remove-Item Env:\AGENTOS_HOME -ErrorAction SilentlyContinue
+}
+if (Test-ForeignDir $env:AGENTOS_ROOT 'workspaces') {
+  Write-Host "    !!  Ignoro AGENTOS_ROOT=$($env:AGENTOS_ROOT) (es de otra ubicacion de AgentOS); uso esta carpeta." -ForegroundColor Yellow
+  Remove-Item Env:\AGENTOS_ROOT -ErrorAction SilentlyContinue
+}
 $LEGACY = $false
 $legacyHome = Join-Path $env:USERPROFILE '.agentos'
 $legacyRoot = Join-Path $env:USERPROFILE 'AgentOS'
@@ -124,19 +147,19 @@ Ok 'Web compilada'
 
 # 4. Plugin
 Step '4/7 Registrando el plugin agentos en Claude Code'
+# Todo en un solo lugar (scripts\migrate-plugins.mjs, el mismo que usa update): registra el marketplace en esta carpeta
+# (si apuntaba a otra, p. ej. porque moviste la carpeta, lo quita y lo vuelve a agregar), quita los 7 plugins viejos,
+# instala o actualiza agentos@agentos, y corrige las rutas de AgentOS que apunten a la ubicacion anterior en
+# settings.json, Claude Desktop y la base (respaldo .agentos-backup).
+$migFlags = @()
+if (-not $DO_SETTINGS) { $migFlags += '--no-settings' }
+if (-not $DO_DESKTOP) { $migFlags += '--no-desktop' }
+$migrate = Join-Path $REPO 'scripts\migrate-plugins.mjs'
 if ($DO_CLI -and $HAVE_CLAUDE) {
-  $list = (& claude plugin marketplace list 2>&1 | Out-String)
-  if ($list -match [regex]::Escape($MKT)) {
-    & claude plugin marketplace update $MKT *> $null
-    Ok "Marketplace '$MKT' ya existia (actualizado)"
-  } else {
-    & claude plugin marketplace add $REPO
-    if ($LASTEXITCODE -ne 0) { Die 'No pude registrar el marketplace.' }
-    Ok 'Marketplace registrado'
-  }
-  # Quita los 7 plugins de versiones anteriores (si los hay) e instala o actualiza agentos@agentos.
-  & $NODE_BIN (Join-Path $REPO 'scripts\migrate-plugins.mjs') --plugins-only
-  if ($LASTEXITCODE -ne 0) { Warn "No pude dejar listo $PLUGIN@$MKT (pruebalo a mano: claude plugin install $PLUGIN@$MKT)" }
+  & $NODE_BIN $migrate @migFlags
+  if ($LASTEXITCODE -ne 0) { Warn "No pude dejar listo $PLUGIN@$MKT (pruebalo a mano: claude plugin marketplace add `"$REPO`" y claude plugin install $PLUGIN@$MKT)" }
+} elseif ($DO_SETTINGS -or $DO_DESKTOP) {
+  & $NODE_BIN $migrate --no-claude @migFlags
 } else { Ok 'Omitido' }
 
 # 5. Claude Desktop
